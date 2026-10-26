@@ -35,6 +35,17 @@ esp_err_t install_from_file(const char *path, install_progress_fn cb, void *ctx,
  * from, or the image's own project name if that was not recorded. */
 bool install_present(char *name, size_t name_len);
 
+/*
+ * Whether we are here because a reset came back out of app2 -- the
+ * bootloader's rollback, which leaves app2 recorded as ABORTED -- rather
+ * than because an app sent us here. An app's "exit to Launcher" (the
+ * player's launcher_exit_to_launcher(), Launcher's own convention) calls
+ * esp_ota_set_boot_partition(factory), and for the factory slot IDF
+ * erases otadata outright, so app2 then has no record at all. Only the
+ * first case should autoboot app2 again; the second asked for the menu.
+ */
+bool install_came_back_by_reset(void);
+
 /* Boot app2 once: mark it to boot, then restart. The reset after that
  * comes back here (sdkconfig.defaults says why). Returns only on error. */
 esp_err_t install_boot(void);

@@ -500,11 +500,14 @@ static void blank_on_restart(void)
 
 /* ---- power-on ------------------------------------------------------------ */
 
-/* app2 boots unless the screen is touched within AUTOBOOT_MS. */
+/* app2 boots unless the screen is touched within AUTOBOOT_MS -- when a
+ * reset brought us back out of it. When an app exited to us on purpose,
+ * or app2 has never been booted, straight to the menu. */
 static void autoboot(void)
 {
     char app[64];
     if (!install_present(app, sizeof app)) return;
+    if (!install_came_back_by_reset()) { PHASE("autoboot: not back by reset, to the menu"); return; }
     int64_t start = esp_timer_get_time();
     for (;;) {
         int left = AUTOBOOT_MS - (int)((esp_timer_get_time() - start) / 1000);

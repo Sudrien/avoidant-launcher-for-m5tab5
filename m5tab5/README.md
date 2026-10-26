@@ -42,6 +42,13 @@ get back from one, erase `otadata` from the ROM bootloader:
 
     esptool.py --chip esp32p4 erase_region 0xe000 0x2000
 
+An app with an "exit to Launcher" (defeatist-music-player-for-m5tab5's,
+or anything that calls `esp_ota_set_boot_partition()` on the factory
+slot and restarts) lands in Duplicitous's menu directly: choosing factory
+erases otadata, and Duplicitous only counts down to app2 when the
+bootloader brought it back from app2 by rollback. It stays in the menu
+across power cycles until something is booted.
+
 ## Partitions
 
 | Name     | Type             | Offset   | Size    |

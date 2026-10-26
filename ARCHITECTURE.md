@@ -115,3 +115,13 @@ the later one is what happened.
   on every `esp_restart()`; the next app's init sends DISPON. Not yet
   confirmed: the markers stay, with a `restart: panel off` line added,
   until a Tab5 shows the gap dark.
+- **0015** m5tab5: an app's "exit to Launcher" goes straight to the menu.
+  The player's Exit to Launcher (`launcher_exit_to_launcher()`) sets the
+  factory slot to boot and restarts; Duplicitous then counted down and
+  booted the player again. IDF erases otadata when factory is chosen, so
+  app2 has no record afterwards, whereas a reset out of app2 comes back
+  by rollback with app2 recorded ABORTED. The countdown now runs only in
+  that second case. No change needed in the apps: the same call returns
+  to bmorcelli/Launcher. A side effect, on purpose: after exiting to
+  Duplicitous, power-cycling stays in Duplicitous until something is
+  booted again.

@@ -190,6 +190,13 @@ bool install_present(char *name, size_t name_len)
     return true;
 }
 
+bool install_came_back_by_reset(void)
+{
+    const esp_partition_t *p = app2();
+    esp_ota_img_states_t st;
+    return p && esp_ota_get_state_partition(p, &st) == ESP_OK && st == ESP_OTA_IMG_ABORTED;
+}
+
 esp_err_t install_boot(void)
 {
     const esp_partition_t *p = app2();
