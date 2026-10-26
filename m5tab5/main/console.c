@@ -16,6 +16,7 @@
 
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
+#include "esp_app_desc.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
@@ -29,6 +30,13 @@ static const char *TAG = "console";
 #define LINE_MAX_LEN  1024
 #define PUT_CHUNK     2048
 #define PUT_TIMEOUT   pdMS_TO_TICKS(5000)
+
+const char *duplicitous_title(void)
+{
+    static char t[48];
+    if (!t[0]) snprintf(t, sizeof t, "Duplicitous %s", esp_app_get_description()->version);
+    return t;
+}
 
 static void reply(const char *fmt, ...)
 {
@@ -161,7 +169,7 @@ static void handle(char *line)
     const char *cmd = line;
 
     if (!strcasecmp(cmd, "version")) {
-        reply("Duplicitous " DUPLICITOUS_VERSION);
+        reply("%s", duplicitous_title());
         reply("OK");
         return;
     }

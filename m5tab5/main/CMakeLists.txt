@@ -2,7 +2,7 @@
 idf_component_register(
     SRCS "main.c" "sd.c" "install.c" "console.c"
     INCLUDE_DIRS "."
-    REQUIRES app_update spi_flash esp_partition bootloader_support nvs_flash
+    REQUIRES app_update esp_app_format spi_flash esp_partition bootloader_support nvs_flash
              fatfs sdmmc esp_driver_sdmmc esp_driver_usb_serial_jtag vfs
              esp_lcd esp_timer feckless_graphics_handler feckless_drivers
 )

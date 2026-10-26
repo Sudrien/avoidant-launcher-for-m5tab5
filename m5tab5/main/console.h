@@ -38,7 +38,9 @@
 
 #include "esp_err.h"
 
-#define DUPLICITOUS_VERSION "0.1.0"
+/* "Duplicitous <version>": the build's version -- the tag CI built, or
+ * `git describe` locally (esp_app_desc_t.version). */
+const char *duplicitous_title(void);
 
 /* Takes over the USB-Serial/JTAG's input and starts the console task. */
 esp_err_t console_start(void);

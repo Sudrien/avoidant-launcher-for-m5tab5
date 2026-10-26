@@ -294,7 +294,7 @@ static void menu(void)
         if (page >= pages) page = pages - 1;
 
         gfx_fill_rect(0, 0, W, H, C_BG);
-        header("Duplicitous " DUPLICITOUS_VERSION, sd_mounted() ? s_dir : "no microSD card");
+        header(duplicitous_title(), sd_mounted() ? s_dir : "no microSD card");
         for (int r = 0; r < ROWS; r++) {
             int i = page * ROWS + r - extra;
             int y = LIST_Y + r * ROW_H;
@@ -377,7 +377,7 @@ static void autoboot(void)
         int left = AUTOBOOT_MS - (int)((esp_timer_get_time() - start) / 1000);
         if (left <= 0) break;
         gfx_fill_rect(0, 0, W, H, C_BG);
-        header("Duplicitous " DUPLICITOUS_VERSION, NULL);
+        header(duplicitous_title(), NULL);
         text_centred(H / 2 - 120, "Booting", C_DIM);
         text_centred(H / 2 - 50, app, C_BIN);
         char s[32];
