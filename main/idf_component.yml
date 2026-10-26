@@ -1,0 +1,17 @@
+dependencies:
+  idf:
+    version: ">=5.4.2"
+
+  # The panel, backlight and gfx text; and the I2C bus, IO expanders and
+  # touch. Pinned to tags, as in defeatist-music-player-for-m5tab5.
+  feckless_graphics_handler:
+    git: https://github.com/Sudrien/feckless-graphics-handler-for-m5tab5.git
+    version: "v0.2.7"
+  feckless_drivers:
+    git: https://github.com/Sudrien/feckless-drivers-for-m5tab5.git
+    version: "v0.5.9"
+
+  # feckless_drivers builds its USB audio driver whether or not it is
+  # used, and does not name this in its own manifest. The player vendors
+  # 1.5.0 in components/; the registry has it under this name.
+  espressif/usb_host_uac: "1.5.0"

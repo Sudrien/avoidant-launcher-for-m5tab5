@@ -1,0 +1,12 @@
+# The launcher in factory, the chosen app in app2 (ota_0), and the same
+# ffat and coredump as the Tab5 projects' app3M_fat9M_16MB layout, at the
+# same offsets -- so an app built for that layout finds its FAT where it
+# expects it, and the FAT survives going between them.
+#
+# Name,   Type, SubType, Offset,   Size,     Flags
+nvs,      data, nvs,      0x9000,   0x5000,
+otadata,  data, ota,      0xe000,   0x2000,
+launcher, app,  factory,  0x10000,  0x200000,
+app2,     app,  ota_0,    0x210000, 0x400000,
+ffat,     data, fat,      0x610000, 0x9E0000,
+coredump, data, coredump, 0xFF0000, 0x10000,
