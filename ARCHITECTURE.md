@@ -104,3 +104,14 @@ the later one is what happened.
   now bracket each, so `idf.py monitor` shows which one the `underrun
   happens` lines fall inside. If none appear at all, it is not an
   underrun. Temporary; removed by the patch that fixes the cause.
+- **0014** m5tab5: the panel off before every restart. *0013 on a Tab5*
+  (b032786): autoboot, `touched, to the menu` at 5089 ms, the scan, the
+  app2 read and the menu's blit all done by 5162 ms -- and no
+  `underrun happens` line anywhere in the log, so the cyan is not the
+  scanout starving. The next thing in the log is a software reset into
+  app2 (the player, whose panel is up 1.9 s later). Between a reset and
+  the next app's panel init nothing drives the DSI link; taken as the
+  cyan. A shutdown handler now turns the backlight off and sends DISPOFF
+  on every `esp_restart()`; the next app's init sends DISPON. Not yet
+  confirmed: the markers stay, with a `restart: panel off` line added,
+  until a Tab5 shows the gap dark.

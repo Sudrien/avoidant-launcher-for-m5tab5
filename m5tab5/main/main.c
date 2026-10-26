@@ -19,6 +19,8 @@
 #include <sys/stat.h>
 
 #include "esp_log.h"
+#include "esp_lcd_panel_ops.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -476,6 +478,26 @@ static void menu(void)
     }
 }
 
+/* ---- restarting ---------------------------------------------------------- */
+
+/*
+ * On every esp_restart() -- booting app2, "reboot", the console's boot:
+ * the panel off and the backlight down first.
+ *
+ * Between the reset and the next app's panel init (about 1.9 s for the
+ * player) nothing drives the DSI link, and the panel shows cyan. Seen on
+ * a Tab5 after cancelling autoboot and going on to boot app2 (0013's
+ * markers: no "underrun happens" anywhere, so not the scanout starving).
+ * DISPOFF holds the glass dark until the next app's init sends DISPON;
+ * the backlight off covers the reset itself.
+ */
+static void blank_on_restart(void)
+{
+    PHASE("restart: panel off");
+    lcd_backlight_set(0);
+    if (lcd_panel()) esp_lcd_panel_disp_on_off(lcd_panel(), false);
+}
+
 /* ---- power-on ------------------------------------------------------------ */
 
 /* app2 boots unless the screen is touched within AUTOBOOT_MS. */
@@ -520,6 +542,7 @@ void app_main(void)
     gfx_fill_rect(0, 0, W, H, C_BG);
     show();
     lcd_backlight_set(BRIGHTNESS);
+    esp_register_shutdown_handler(blank_on_restart);
 
     /* The USB host before storage: storage registers mass storage as a
      * class with it, which is refused once the port is up. Then the port,
