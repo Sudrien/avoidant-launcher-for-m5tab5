@@ -31,7 +31,9 @@ step checks that Launcher answers on its serial console, asking it
 With Duplicitous on the Tab5, step 4 sends files to its microSD card or
 USB drive instead -- the firmware chosen in step 1, or files from your
 computer -- by YMODEM over the same port, reads each one back to check
-its SHA-256, and can install a `.bin` to `app2` and boot it. It shows
+its SHA-256, and can install a `.bin` to `app2` and boot it. A file
+already there with the same SHA-256 is not sent again; one that differs
+is replaced. It shows
 what storage the Tab5 has ("Check storage" asks), kept current by the
 Tab5's own notices whenever the page has the port open, and checks
 there is room before sending.

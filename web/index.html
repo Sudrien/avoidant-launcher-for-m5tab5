@@ -74,7 +74,8 @@ something does, it takes pieces of what the Tab5 sends, and a transfer
 fails. It runs by itself before every Send.</p>
 <label>To the <select id="sendvol"><option value="sd">microSD card</option><option value="usb">USB drive</option></select>,
   in the folder <input id="senddir" value="bins" size="24"></label>
-<label><input type="checkbox" id="sendforce"> Replace files that are already there</label>
+<p class="muted">A file already there with the same SHA-256 is not sent again; one
+that differs is replaced.</p>
 <label><input type="checkbox" id="sendinstall"> Then install it to app2 and boot it (one <code>.bin</code>)</label>
 <button id="send" disabled>Send</button>
 <progress id="sendprogress" value="0" max="1" hidden></progress>
@@ -880,55 +881,72 @@ $('send').onclick = async () => {
     const vol = $('sendvol').value;
     if (!await s.ask('vols', /^(OK|ERR)\b/, 5000)) throw new Error('No answer to "vols".');
     if (!vols[vol].present) throw new Error('There is no ' + VOL_NAMES[vol] + ' in the Tab5.');
-    if (vols[vol].free !== undefined && vols[vol].free < total)
-      throw new Error('The ' + VOL_NAMES[vol] + ' has ' + kb(vols[vol].free) + ' free; this needs ' + kb(total) + '.');
 
-    // rb, then YMODEM-G on the raw bytes
-    s.raw = [];
-    await s.send('rb -g' + ($('sendforce').checked ? 'f' : '') + ' ' + dir);
-    let ready = null;
-    for (const end = Date.now() + 10000; !ready && Date.now() < end; ) {
-      const l = await s.rawLine(end - Date.now());
-      if (l === null) break;
-      if (/^(READY|ERR)\b/.test(l)) ready = l;
-    }
-    if (!ready) throw new Error('No answer to "rb".');
-    if (/^ERR/.test(ready)) throw new Error('The Tab5 said: ' + ready);
-
-    say('sendinfo', 'Sending ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ', ' + kb(total) + ', to ' + dir + '...', 'muted');
-    bar.hidden = false; bar.value = 0;
-    const before = files.map((f, i) => files.slice(0, i).reduce((n, g) => n + g.data.length, 0));
-    const t0 = Date.now();
-    let failed = null;
-    try {
-      await ymodemSend(s.io, files, (i, sent) => { bar.value = (before[i] + sent) / (total || 1); });
-    } catch (e) { failed = e; }
-    // the Tab5's verdict, a line after the protocol ends
-    let verdict = null;
-    for (const end = Date.now() + 10000; !verdict && Date.now() < end; ) {
-      const l = await s.rawLine(end - Date.now());
-      if (l === null) break;
-      if (/^(OK|ERR)\b/.test(l)) verdict = l;
-    }
-    s.raw = null;
-    if (failed) throw new Error('Sending stopped: ' + failed.message + (verdict ? '\nThe Tab5 said: ' + verdict : '')
-      + (verdict && / exists /.test(verdict) ? '\nTick "Replace files that are already there" to send it anyway.' : ''));
-    if (!verdict || !/^OK/.test(verdict)) throw new Error('The Tab5 did not confirm the files' + (verdict ? ': ' + verdict : '.'));
-    const secs = (Date.now() - t0) / 1000;
-    report.push('Sent ' + kb(total) + ' in ' + secs.toFixed(1) + ' s (' + kb(total / secs) + '/s): ' + verdict);
-
-    // read each back: YMODEM's CRC covered the cable, this covers the card
-    say('sendinfo', report.join('\n') + '\nReading them back...', 'muted');
-    let allGood = true;
+    // what is there already: the same file is not sent again, a
+    // different one is replaced
+    say('sendinfo', report.join('\n') + '\nLooking at what is there...', 'muted');
+    const toSend = [];
     for (const f of files) {
       const path = dir + '/' + f.name;
-      const want = await sha256(f.data);
+      f.sha = await sha256(f.data);
       const got = await s.ask('sha256 ' + path, /^(OK|ERR)\b/, 60000);
-      const good = got === 'OK ' + want;
-      allGood = allGood && good;
-      report.push((good ? 'checked  ' : 'DIFFERS  ') + path + (good ? '' : '  (' + (got || 'no answer') + ')'));
+      if (got === 'OK ' + f.sha) report.push('already there, identical  ' + path);
+      else { f.replacing = !!(got && got.startsWith('OK ')); toSend.push(f); }
     }
-    if (!allGood) throw new Error('A file on the Tab5 is not what was sent.');
+    const need = toSend.reduce((n, f) => n + f.data.length, 0);
+    if (vols[vol].free !== undefined && vols[vol].free < need)
+      throw new Error('The ' + VOL_NAMES[vol] + ' has ' + kb(vols[vol].free) + ' free; this needs ' + kb(need) + '.');
+
+    if (toSend.length) {
+      // rb -gf, then YMODEM-G on the raw bytes. -f: whatever is there under
+      // these names was just found to differ.
+      s.raw = [];
+      await s.send('rb -gf ' + dir);
+      let ready = null;
+      for (const end = Date.now() + 10000; !ready && Date.now() < end; ) {
+        const l = await s.rawLine(end - Date.now());
+        if (l === null) break;
+        if (/^(READY|ERR)\b/.test(l)) ready = l;
+      }
+      if (!ready) throw new Error('No answer to "rb".');
+      if (/^ERR/.test(ready)) throw new Error('The Tab5 said: ' + ready);
+
+      say('sendinfo', report.join('\n') + '\nSending ' + toSend.length + ' file' + (toSend.length > 1 ? 's' : '') + ', ' + kb(need) + ', to ' + dir + '...', 'muted');
+      bar.hidden = false; bar.value = 0;
+      const before = toSend.map((f, i) => toSend.slice(0, i).reduce((n, g) => n + g.data.length, 0));
+      const t0 = Date.now();
+      let failed = null;
+      try {
+        await ymodemSend(s.io, toSend, (i, sent) => { bar.value = (before[i] + sent) / (need || 1); });
+      } catch (e) { failed = e; }
+      // the Tab5's verdict, a line after the protocol ends
+      let verdict = null;
+      for (const end = Date.now() + 10000; !verdict && Date.now() < end; ) {
+        const l = await s.rawLine(end - Date.now());
+        if (l === null) break;
+        if (/^(OK|ERR)\b/.test(l)) verdict = l;
+      }
+      s.raw = null;
+      if (failed) throw new Error('Sending stopped: ' + failed.message + (verdict ? '\nThe Tab5 said: ' + verdict : ''));
+      if (!verdict || !/^OK/.test(verdict)) throw new Error('The Tab5 did not confirm the files' + (verdict ? ': ' + verdict : '.'));
+      const secs = (Date.now() - t0) / 1000;
+      report.push('Sent ' + kb(need) + ' in ' + secs.toFixed(1) + ' s (' + kb(need / secs) + '/s): ' + verdict);
+
+      // read each back: YMODEM's CRC covered the cable, this covers the card
+      say('sendinfo', report.join('\n') + '\nReading them back...', 'muted');
+      let allGood = true;
+      for (const f of toSend) {
+        const path = dir + '/' + f.name;
+        const got = await s.ask('sha256 ' + path, /^(OK|ERR)\b/, 60000);
+        const good = got === 'OK ' + f.sha;
+        allGood = allGood && good;
+        report.push((good ? (f.replacing ? 'replaced, checked  ' : 'new, checked  ') : 'DIFFERS  ') + path
+          + (good ? '' : '  (' + (got || 'no answer') + ')'));
+      }
+      if (!allGood) throw new Error('A file on the Tab5 is not what was sent.');
+    } else {
+      report.push('Nothing to send: every file is there already.');
+    }
 
     if (install) {
       const path = dir + '/' + files[0].name;

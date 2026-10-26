@@ -176,3 +176,18 @@ the later one is what happened.
   about 6 s, by the button and by Send. The same log shows 0015 and 0017
   working: `phase: autoboot: not back by reset, to the menu`, and
   `EVENT sd mounted` at boot.
+- **0020** web: same file skipped, different file replaced. *0019 on a
+  Tab5* (8bdb166): with the monitor still open the first try stopped
+  after `version` (the page got an `E` of the first `ECHO`); the second,
+  alone, passed 8 of 8, `vols` showed the card (87 GB free), and `rb`
+  refused `lothesome_v0.3.0-pre1_..._standalone.bin` as already there
+  -- from an earlier send that had worked. Asked: check the SHA-256,
+  and replace without asking if it differs. The page now asks `sha256`
+  for each file before sending: the same hash is reported "already
+  there, identical" and not sent (install and boot still follow); any
+  other answer sends it, with `rb -gf`, and the read-back reports "new"
+  or "replaced". The free-space check counts only what is sent. The
+  "Replace files that are already there" box is gone. `rb` without
+  `-f` still refuses for terminals. In headless Chromium: two files
+  sent, sent again (nothing sent), one changed (only it sent, and the
+  new one on the volume).
