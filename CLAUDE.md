@@ -14,18 +14,56 @@ Claude creates `git am`-able patches authored as
 exists -- a session can end with patches stuck behind it.
 
 Claude must not commit to, push to, branch on, or open a pull request
-against the repository. Local commits made to run `git format-patch`
-stay local.
+against the repository. The URL a session is given is for pulling only.
+Local commits made to run `git format-patch` stay local.
 
-**Patches are cumulative.** Each applies on top of what is already here.
-Never reissue a corrected version of a patch that has been handed over:
-send a follow-up with the next number. The number comes from
-`--start-number`, never from the subject:
+**Patches only, never binaries.** Claude does not hand over a `.bin`,
+built or merged, for testing or otherwise. The firmware that goes on a
+Tab5 is what `.github/workflows/m5tab5.yml` builds from a pushed tree,
+so what was tested is what is in the history -- a binary from a
+session's scratch build is neither.
 
-    git format-patch --start-number 3 -1 -o out/
+**Patches are cumulative.** Each applies on top of what is already here,
+including patches handed over and not yet pushed. Never hand back a
+rewritten copy of a file, and never reissue a corrected version of a
+patch that has been handed over: send a follow-up, with the next number,
+that changes what needs changing. A patch already handed over is
+history.
 
-Before choosing a number, look at the last one used (`git log`) and take
-the next.
+**Handed over, not pushed, is the line.** A patch may be applied and
+pushed before the session's next message, and a session cannot see
+whether it was. A second file under the same number is two patches with
+one name, and there is no telling which one the next patch was built on.
+
+**A patch has one number, and it is written down once.** The number
+runs on from patch to patch across sessions. It is supplied by
+`--start-number`, never put in the subject:
+
+    git format-patch --start-number 9 -1 -o out/
+
+gives `0009-<subject>.patch`. A subject reading `0009: ...` would come
+out as `0009-0009-...`; write the subject as the subject.
+
+**Before choosing a number, look at the last one used:** the newest
+entry in the series at the end of `ARCHITECTURE.md`, which every patch
+adds itself to. `git log` has the subjects but not the numbers. Take
+the next one; never start from a round number without checking it is
+free.
+
+**Where the numbering is now: the 0000 series, toward v0.1.0.** A
+series is named for the release it leads to -- the 0000s toward v0.1.0,
+the 2000s toward v0.2.0, the 3000s toward v0.3.0 -- so a patch number
+says which release it went into. A point release (v0.1.1) does not
+start a series. **The first patch after a tag updates this paragraph**
+and opens the next series' heading in `ARCHITECTURE.md`; the tag is the
+reminder, and this file is what the next session reads.
+
+**What a patch's `ARCHITECTURE.md` entry says:** its number and
+subject, one or two lines of what it does, and -- once a board has run
+it -- what the log showed, with the line that proves it. A patch that
+changes `sdkconfig.defaults` names the log line that proves the new
+value took. Hardware results for a patch already handed over go in the
+next patch's entry, not into the old one.
 
 ## m5tab5/
 
@@ -42,7 +80,8 @@ from defeatist-music-player-for-m5tab5's family of components.
   says so.
 - **Any change to `sdkconfig.defaults` needs `rm sdkconfig`** before the
   next build. Say so in the commit message.
-- **Not yet run on hardware**, as of the first patch.
+- **Run on hardware:** see the series in `ARCHITECTURE.md` for what each
+  build did on a Tab5.
 
 ## web/
 
