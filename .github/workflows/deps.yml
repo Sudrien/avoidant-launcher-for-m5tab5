@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: MIT
+name: Check the projects' dependencies
+
+# Once a week, and by hand: tools/depcheck.py on each Tab5 project's
+# lock, against the Espressif registry, the git remotes and ESP-IDF's
+# tags, and tools/depreport.py's one report of what is newer, kept as a
+# single open issue here titled "Dependency updates".
+#
+# The issue is edited only when the report changes -- it carries no date
+# -- so a quiet week leaves it alone. With nothing newer anywhere it is
+# closed, and the next week with something opens a new one. A run that
+# could not check everything (the registry down) and found nothing newer
+# leaves the issue as it is.
+#
+# Nothing is changed in the projects. Taking an update is a manifest or
+# lock change, and each project's CLAUDE.md wants that lock read after a
+# build before it is committed.
+
+on:
+  schedule:
+    # Mondays 06:23 UTC: off the hour, as busy hours delay scheduled runs.
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: deps
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      TITLE: Dependency updates
+      # repository and the directory its dependencies.lock is in
+      PROJECTS: >-
+        duplicitous-for-m5tab5:m5tab5
+        defeatist-music-player-for-m5tab5:.
+        unprofitable-mahjong:m5tab5
+        aimless-moving-map-for-m5tab5:.
+        lothesome-audio-analyzer-for-m5tab5:.
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # One clone at a time, each checked. depcheck.py exits 1 for
+      # updates and 3 for unchecked; both are reports, not failures, so
+      # the status is kept for the report rather than ending the job.
+      - name: Check each project
+        run: |
+          mkdir -p _deps
+          args=""
+          for p in $PROJECTS; do
+            repo=${p%%:*}; dir=${p#*:}
+            git clone -q --depth 1 "https://github.com/Sudrien/$repo.git" "_deps/$repo"
+            commit=$(git -C "_deps/$repo" rev-parse HEAD)
+            set +e
+            python3 -I tools/depcheck.py "_deps/$repo/$dir" --json > "_deps/$repo.json"
+            code=$?
+            set -e
+            echo "$repo $commit: exit $code"
+            args="$args $repo:$commit:$code:_deps/$repo.json"
+          done
+          python3 -I tools/depreport.py $args > _deps/report.md
+          head -1 _deps/report.md > _deps/state
+          tail -n +2 _deps/report.md > _deps/body.md
+          cat _deps/body.md >> "$GITHUB_STEP_SUMMARY"
+
+      # The open issue with exactly this title, if there is one; edited
+      # when the body differs, ignoring the \r GitHub can store.
+      - name: Keep the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          state=$(cat _deps/state)
+          n=$(gh issue list --state open --limit 100 --json number,title \
+                --jq ".[] | select(.title == \"$TITLE\") | .number" | head -1)
+          if [ "$state" = updates ]; then
+            if [ -z "$n" ]; then
+              gh issue create --title "$TITLE" --body-file _deps/body.md
+            else
+              gh issue view "$n" --json body --jq .body | tr -d '\r' > _deps/old.md
+              if diff -q <(sed -e 's/[[:space:]]*$//' _deps/old.md) \
+                         <(sed -e 's/[[:space:]]*$//' _deps/body.md) > /dev/null; then
+                echo "issue #$n: unchanged"
+              else
+                gh issue edit "$n" --body-file _deps/body.md
+              fi
+            fi
+          elif [ "$state" = unknown ]; then
+            echo "not everything could be checked, and nothing newer was found: issue left as it is"
+          elif [ -n "$n" ]; then
+            gh issue close "$n" --comment "Every project's dependencies are at their newest."
+          else
+            echo "nothing newer, and no issue open"
+          fi

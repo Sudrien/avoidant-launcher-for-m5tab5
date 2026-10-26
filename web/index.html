@@ -1,0 +1,706 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tab5 Web Flasher</title>
+<!-- a USB-C plug, the cable the Tab5 is flashed over -->
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"%3E%3Cpath d="M14 22.5v9h4v-9M7.6 11.5h16.8l-1.8 11h-13.2z" fill="%23202124" stroke="%239aa0a6"/%3E%3Crect x="9" y="1" width="14" height="10" rx="5" fill="%23bdc1c6"/%3E%3Crect x="12" y="5" width="8" height="2" rx="1" fill="%233c4043"/%3E%3C/svg%3E'>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #111; --muted: #666; --ok: #11772e; --bad: #b3261e; --box: #f2f2f2; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --muted: #999; --ok: #5fd37a; --bad: #ff8a80; --box: #242424; } }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; max-width: 1280px; box-sizing: border-box; margin: 0 auto; padding: 1rem; }  /* 720p: 1280 px wide */
+  button { font: inherit; padding: .5rem 1rem; margin: .25rem .5rem .25rem 0; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .muted { color: var(--muted); }
+  pre { background: var(--box); padding: .75rem; overflow-x: auto; white-space: pre-wrap; min-height: 6rem; max-height: 20rem; }
+  label { display: block; margin: .5rem 0; }
+  a.release { display: block; margin: -.4rem 0 .5rem 1.6rem; font-size: .875rem; color: var(--muted); }
+  footer { margin-top: 2rem; color: var(--muted); font-size: .875rem; }
+  footer a { color: inherit; }
+  progress { width: 100%; }
+</style>
+</head>
+<body>
+<h1>Tab5 web flasher</h1>
+<p>Flashes firmware onto the M5Stack Tab5's ESP32-P4 over its USB-C port.</p>
+
+<p id="support"></p>
+
+<h2>1. Choose the firmware</h2>
+<div id="firmware" class="muted">Looking for the published firmware...</div>
+<label><input type="radio" name="fw" value="file"> A <code>_standalone.bin</code> from this computer:
+  <input type="file" id="fwfile" accept=".bin"></label>
+
+<h2>2. Flash it</h2>
+<button id="flash" disabled>Flash it</button>
+<p class="muted">The browser then asks for the Tab5's serial port, and this
+page asks you to confirm before anything is written.</p>
+<progress id="progress" value="0" max="1" hidden></progress>
+<pre id="flashinfo" class="muted">Choose a firmware first.</pre>
+
+<section id="launcherstep" hidden>
+<h2>3. Check that Launcher answers</h2>
+<p>Launcher keeps a command console on the same USB-C port. This sends it
+<code>version</code>, <code>whoami</code> and <code>partitions</code> --
+all three only read -- and checks the replies, so you know firmware can
+be sent to it this way. Give a freshly flashed Launcher a few seconds to
+start; this waits up to 20. It runs by itself after Launcher is flashed.</p>
+<button id="launchertest" disabled>Talk to Launcher</button>
+<button id="launcherreboot" disabled>Restart Launcher, then talk to it</button>
+<p class="muted">If Launcher answers but the screen stays dark, restart it:
+on its first boot after other firmware, Launcher can miss the Tab5's display
+(<code>M5GFX: M5Tab5 display panel was not detected</code>), and finds it
+on the next one.</p>
+<pre id="launcherinfo" class="muted">Not checked yet.</pre>
+</section>
+
+<details>
+<summary>Port and chip tests</summary>
+<label><input type="checkbox" id="anyport"> Show every serial port, not only Espressif (USB vendor 0x303A) ones</label>
+<button id="pick" disabled>Choose the Tab5's port</button>
+<button id="listen" disabled>Show its output</button>
+<button id="reset" disabled>Reset the Tab5</button>
+<button id="close" disabled>Close</button>
+<p class="muted">The output follows the Tab5 through resets, like
+<code>idf.py monitor</code>: when it drops off USB, the page waits for it
+to come back and keeps reading.</p>
+<button id="chip" disabled>Reset into the bootloader and read the chip</button>
+<p class="muted">If reading the chip or flashing times out, the running firmware may have
+turned off the USB-Serial/JTAG reset. Hold BOOT, press and release RESET,
+let go of BOOT, and try once more.</p>
+<h3>Port</h3>
+<pre id="info" class="muted">No port chosen.</pre>
+<h3>Chip</h3>
+<pre id="chipinfo" class="muted">Not read yet.</pre>
+</details>
+
+<h2>Output</h2>
+<p class="muted">Everything the Tab5 and this page print, kept across resets and steps (the newest 200,000 characters).
+<button id="clearout">Clear</button></p>
+<pre id="out"></pre>
+
+<!-- The deploy (.github/workflows/pages.yml) writes the commit into
+     data-build; anywhere else it is left as it is, and reads "local". -->
+<footer><a href="https://github.com/Sudrien/duplicitous-for-m5tab5">github.com/Sudrien/duplicitous-for-m5tab5</a> · <span id="build" data-build="__BUILD_SHA__">local</span> · MIT License</footer>
+
+<!-- esptool-js, Espressif's port of esptool, pinned with its hash; loaded
+     only when the chip is read, so the port test works without it.
+     Apache-2.0: https://github.com/espressif/esptool-js -->
+<script type="importmap">
+{
+  "imports": { "esptool-js": "https://cdn.jsdelivr.net/npm/esptool-js@0.7.0/bundle.js" },
+  "integrity": { "https://cdn.jsdelivr.net/npm/esptool-js@0.7.0/bundle.js": "sha384-gg1uFHEfaf6612Q8/ovFzAYvLxRakqrLWyMjLe8LEMBP3+2qgUvxuYxTuk87KdIb" }
+}
+</script>
+<script type="module">
+// Espressif's USB vendor ID. The P4's built-in USB-Serial/JTAG is 0x303A:0x1001;
+// an app using TinyUSB CDC shows another product ID under the same vendor.
+const ESPRESSIF_VID = 0x303A;
+const KNOWN = { 0x1001: 'ESP32 USB-Serial/JTAG (built in)' };
+
+const $ = id => document.getElementById(id);
+const hex = n => n === undefined ? 'not reported' : '0x' + n.toString(16).toUpperCase().padStart(4, '0');
+let port = null, reader = null, busy = false, listening = false, stopListen = false;
+// the newest allowed port to plug in, and when -- see reacquirePort()
+let lastConnect = { p: null, t: 0 };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// the commit this page was published from, as a link to it
+(() => {
+  const el = $('build'), sha = el.dataset.build;
+  if (!/^[0-9a-f]{40}$/.test(sha)) return;
+  el.innerHTML = `<a href="https://github.com/Sudrien/duplicitous-for-m5tab5/commit/${sha}" title="The build of this page">${sha.slice(0, 7)}</a>`;
+})();
+
+function say(id, text, cls) { const el = $(id); el.textContent = text; el.className = cls || ''; }
+
+if (!('serial' in navigator)) {
+  say('support', window.isSecureContext
+    ? 'This browser has no Web Serial. It needs Chrome, Edge, or Firefox 151 or later on desktop.'
+    : 'This page is not in a secure context (https or localhost), so Web Serial is hidden.', 'bad');
+} else {
+  say('support', 'Web Serial is available in this browser. In Firefox, an explanation appears before the port prompt the first time.', 'ok');
+  $('pick').disabled = false;
+  navigator.serial.addEventListener('disconnect', e => {
+    lastDisconnect.set(e.target, Date.now());
+    portLog('disconnect: ' + portName(e.target));
+    // Resetting the chip can drop it off USB for a moment; while the
+    // page is working with it, or following its output, that is
+    // expected, not an unplug.
+    if (e.target === port && !busy && !listening) { say('info', 'The port was unplugged.', 'bad'); port = null; buttons(); }
+  });
+  // An allowed device plugging back in -- the Tab5 after a reset -- with
+  // no prompt needed to use it.
+  navigator.serial.addEventListener('connect', e => {
+    lastConnect = { p: e.target, t: Date.now() };
+    portLog('connect: ' + portName(e.target));
+  });
+}
+
+// What the browser says about ports, into Output, as "[port] ..." lines:
+// how to tell, on a real Tab5 and browser, why a port was or was not
+// taken back after a reset.
+const lastDisconnect = new Map();
+const portIds = new Map();
+function portName(p) {
+  if (!p) return 'none';
+  if (!portIds.has(p)) portIds.set(p, portIds.size + 1);
+  const i = p.getInfo();
+  return '#' + portIds.get(p) + ' ' + hex(i.usbVendorId) + ':' + hex(i.usbProductId)
+    + (p === port ? ' (the one in use)' : '');
+}
+function portLog(msg) {
+  if (typeof outWrite === 'function') outWrite('[port] ' + ((Date.now() / 1000) % 1000).toFixed(1) + 's ' + msg + '\n');
+}
+
+function buttons() {
+  const serial = 'serial' in navigator;
+  $('listen').disabled = !port || listening || busy;
+  $('close').disabled = !listening;
+  $('reset').disabled = !listening;
+  $('chip').disabled = !port || listening || busy;
+  $('pick').disabled = !serial || busy || listening;
+  $('flash').disabled = !serial || listening || busy || !chosenLabel();
+  $('launchertest').disabled = !serial || listening || busy;
+  $('launcherreboot').disabled = !serial || listening || busy;
+  // step 3 is for Launcher: shown once it is flashed, or while it is chosen
+  $('launcherstep').hidden = !(launcherFlashed || isLauncher(chosenLabel()));
+}
+
+let launcherFlashed = false;
+const isLauncher = label => /launcher/i.test(label || '');
+
+// What the chosen firmware is called, or null if none is ready to flash.
+function chosenLabel() {
+  const r = document.querySelector('input[name=fw]:checked');
+  if (!r) return null;
+  if (r.value === 'file') { const f = $('fwfile').files[0]; return f ? f.name : null; }
+  const f = published[+r.value];
+  return f ? f.project + ' ' + f.tag : null;
+}
+
+// Ask for the Tab5's port; null if none was chosen. Must run straight
+// from a click, before anything slow, or the browser refuses the prompt.
+async function choosePort() {
+  try {
+    const opts = $('anyport').checked ? {} : { filters: [{ usbVendorId: ESPRESSIF_VID }] };
+    const p = await navigator.serial.requestPort(opts);
+    const ok = p.getInfo().usbVendorId === ESPRESSIF_VID;
+    say('info', 'Permission granted.\n' + describe(p), ok ? 'ok' : 'bad');
+    return p;
+  } catch (e) {
+    // NotFoundError: the prompt was cancelled or nothing matched; SecurityError: blocked by policy
+    say('info', e.name === 'NotFoundError' ? 'No port was chosen (cancelled, or no matching device plugged in).' : e.name + ': ' + e.message, 'bad');
+    return null;
+  }
+}
+
+// A reset drops the Tab5 off USB. The browser keeps the permission (it
+// knows the device by vendor, product and serial number) but may hand
+// back a new SerialPort for it, so after a reset: wait for an allowed
+// port of the same vendor and product to plug in -- the "connect" event,
+// or failing that a new one in getPorts() -- and use it, no prompt.
+// Firefox gives back the same SerialPort object (its own hotplug test
+// expects that), so that counts too once it has dropped off and is
+// listed again. since is when the reset was started: the Tab5 can be
+// back before this is called, and its connect event already past.
+// If nothing came back but the old port is still listed, it never went
+// away, and is still good. null after ms with neither.
+async function reacquirePort(old, since = Date.now(), ms = 120000, onSlow = null) {
+  const want = old ? old.getInfo() : { usbVendorId: ESPRESSIF_VID };
+  const same = p => {
+    const i = p.getInfo();
+    return i.usbVendorId === want.usbVendorId && (want.usbProductId === undefined || i.usbProductId === want.usbProductId);
+  };
+  const start = Date.now();
+  portLog('waiting for ' + portName(old) + ' to come back');
+  await sleep(500);  // let it drop off first
+  let polls = 0, slow = false;
+  while (Date.now() < start + ms) {
+    // Seen on the Tab5: after the watchdog reset that follows a flash it
+    // can stay off USB until its RESET button is pressed.
+    if (!slow && onSlow && Date.now() > start + 5000) { slow = true; portLog('not back after 5 s'); onSlow(); }
+    if (lastConnect.t > since && lastConnect.p && same(lastConnect.p)) {
+      portLog('back by its connect event: ' + portName(lastConnect.p) + (lastConnect.p === old ? ', the same object' : ', a new object'));
+      return lastConnect.p;
+    }
+    let ps = [];
+    try { ps = (await navigator.serial.getPorts()).filter(same); } catch (e) { portLog('getPorts failed: ' + e.message); }
+    if (polls++ % 4 === 0) portLog('getPorts: ' + (ps.length ? ps.map(portName).join(', ') : 'nothing allowed and plugged in'));
+    const fresh = ps.filter(p => p !== old);
+    if (fresh.length === 1) { portLog('back in getPorts as a new object: ' + portName(fresh[0])); return fresh[0]; }
+    // the same object, listed again after it was seen to drop off
+    if (old && ps.includes(old) && (lastDisconnect.get(old) || 0) > since) {
+      portLog('back in getPorts as the same object: ' + portName(old)); return old;
+    }
+    await sleep(250);
+  }
+  try {
+    if (old && (await navigator.serial.getPorts()).includes(old)) { portLog('still listed, never seen to drop off: ' + portName(old)); return old; }
+  } catch (e) { /* gone */ }
+  portLog('did not come back within ' + ms / 1000 + ' s');
+  return null;
+}
+
+// After the page reset the Tab5: take its port back, or say to choose it.
+// If it is not back in 5 s, say so -- in the Port box, in Output, and
+// under the step that reset it (statusId) -- and ask for RESET.
+const PRESS_RESET = 'The Tab5 has not come back on USB. Press its RESET button '
+  + '(or the power button); this page waits up to 2 minutes and carries on by itself.';
+async function afterReset(old, since, statusId = null) {
+  say('info', 'The Tab5 reset; waiting for it to come back on USB...', 'muted');
+  const el = statusId && $(statusId), before = el ? el.textContent : '';
+  let asked = false;
+  port = await reacquirePort(old, since, 120000, () => {
+    asked = true;
+    say('info', PRESS_RESET, 'bad');
+    outWrite('\n--- ' + PRESS_RESET + ' ---\n');
+    if (el) { el.textContent = before + '\n\n' + PRESS_RESET; el.className = 'bad'; }
+  });
+  if (port) say('info', 'The Tab5 is back; the browser still allows its port.\n' + describe(port), 'ok');
+  else say('info', 'The Tab5 did not come back within 2 minutes. Choose its port again.', 'bad');
+  if (el && asked) { el.textContent = before + (port ? '\nThe Tab5 is back.' : '\nThe Tab5 did not come back within 2 minutes.'); el.className = port ? 'ok' : 'bad'; }
+  buttons();
+  return port;
+}
+
+function describe(p) {
+  const i = p.getInfo();
+  const lines = ['USB vendor:  ' + hex(i.usbVendorId), 'USB product: ' + hex(i.usbProductId)];
+  if (i.usbVendorId === ESPRESSIF_VID) lines.push('This is an Espressif device: ' + (KNOWN[i.usbProductId] || 'product not in this page\'s list'));
+  else lines.push('This is not an Espressif device.');
+  return lines.join('\n');
+}
+
+$('pick').onclick = async () => {
+  port = await choosePort();
+  buttons();
+};
+
+// Output only grows -- through resets, steps and Tab5 output alike --
+// so a whole session can be read and copied in one piece. Each action
+// starts with a dated heading; only Clear empties it.
+function outWrite(s) {
+  const out = $('out');
+  out.textContent = (out.textContent + s).slice(-200000);
+  out.scrollTop = out.scrollHeight;
+}
+function outHeading(what) {
+  const t = $('out').textContent;
+  outWrite((t && !t.endsWith('\n') ? '\n' : '') + (t ? '\n' : '')
+    + '=== ' + new Date().toLocaleTimeString() + ' ' + what + ' ===\n');
+}
+$('clearout').onclick = () => { $('out').textContent = ''; };
+
+// Follow the Tab5's output until Close, through its resets.
+$('listen').onclick = async () => {
+  outHeading('Showing the Tab5\'s output');
+  listening = true; stopListen = false; buttons();
+  while (!stopListen) {
+    const opened = Date.now();
+    try {
+      await port.open({ baudRate: 115200 });  // the USB-Serial/JTAG ignores the rate
+      reader = port.readable.getReader();
+      const dec = new TextDecoder();
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        outWrite(dec.decode(value, { stream: true }));
+      }
+    } catch (e) {
+      if (!stopListen) outWrite('\n--- ' + e.name + ': ' + e.message + ' ---\n');
+    }
+    if (reader) { try { reader.releaseLock(); } catch (e) { /* gone */ } reader = null; }
+    try { await port.close(); } catch (e) { /* already closed or unplugged */ }
+    if (stopListen) break;
+    outWrite('\n--- the Tab5 went away; waiting for it to come back ---\n');
+    const old = port;
+    port = await reacquirePort(old, opened, 120000, () => outWrite('--- ' + PRESS_RESET + ' ---\n'));
+    if (!port) { outWrite('--- it did not come back within 2 minutes; choose its port again ---\n'); break; }
+    outWrite('--- it is back ---\n');
+  }
+  listening = false;
+  buttons();
+};
+
+$('close').onclick = () => { stopListen = true; if (reader) reader.cancel().catch(() => {}); };
+
+// Reset the chip into its firmware, as idf.py monitor's Ctrl+T Ctrl+R does:
+// RTS with DTR released is the USB-Serial/JTAG's reset into normal boot.
+// The output then follows it back.
+$('reset').onclick = async () => {
+  try {
+    outWrite('\n--- resetting the Tab5 ---\n');
+    await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+    await sleep(100);
+    await port.setSignals({ requestToSend: false });
+  } catch (e) { /* it already reset and left */ }
+};
+
+// esptool-js 0.7.0's after('hard_reset') only releases RTS and never
+// asserts it, so over USB-Serial/JTAG nothing resets and the Tab5 stays
+// in the bootloader. Reset with the chip's watchdog instead (what esptool
+// does over USB on the P4), and if that is not there, pulse RTS with DTR
+// released, which the USB-Serial/JTAG takes as a reset into normal boot.
+//
+// Seen on the Tab5: after a flash, the watchdog reset could leave it off
+// USB until RESET was pressed, while idf.py monitor's DTR/RTS reset
+// (rst:0x17 CHIP_USB_UART_RESET) brought the same firmware up. So the
+// RTS pulse goes first; if p has not dropped off USB within 1.5 s, it
+// did nothing, and the watchdog follows.
+async function backToFirmware(loader, transport, terminal, p) {
+  const t0 = Date.now();
+  try {
+    terminal.writeLine('Hard resetting: DTR off, RTS pulse...');
+    await transport.setDTR(false);
+    await transport.setRTS(true);
+    await sleep(100);
+    await transport.setRTS(false);
+  } catch (e) { /* the chip already reset and left */ }
+  for (const end = Date.now() + 1500; Date.now() < end; await sleep(50)) {
+    if ((lastDisconnect.get(p) || 0) > t0) { portLog('the RTS pulse reset it'); return; }
+  }
+  const chip = loader.chip;
+  if (chip && typeof chip.watchdogReset === 'function') {
+    portLog('still on USB after the RTS pulse; trying the watchdog');
+    try { await chip.watchdogReset(loader); }
+    catch (e) { terminal.writeLine('Watchdog reset failed (' + e.message + ').'); }
+  }
+}
+
+$('chip').onclick = async () => {
+  busy = true; buttons();
+  outHeading('Reading the chip');
+  const terminal = {
+    clean() { /* Output is never cleared but by its Clear button */ },
+    writeLine(s) { terminal.write(s + '\n'); },
+    write(s) { outWrite(s); },
+  };
+  let transport = null, loader = null;
+  try {
+    say('chipinfo', 'Loading esptool-js...', 'muted');
+    const { ESPLoader, Transport } = await import('esptool-js');
+    transport = new Transport(port);
+    loader = new ESPLoader({ transport, baudrate: 115200, terminal });
+    say('chipinfo', 'Resetting into the bootloader...', 'muted');
+    const name = await loader.main('default_reset');
+    const chip = loader.chip;
+    const lines = [
+      // main() returns the description, revision and all; the name alone is CHIP_NAME
+      'Chip:     ' + (chip.CHIP_NAME || name),
+      'Revision: ' + await chip.getChipDescription(loader),
+      'Features: ' + (await chip.getChipFeatures(loader)).join(', '),
+      'Crystal:  ' + await chip.getCrystalFreq(loader) + ' MHz',
+      'MAC:      ' + await chip.readMac(loader),
+      'Flash:    ' + (await loader.detectFlashSize() || 'size not detected'),
+    ];
+    const p4 = /ESP32-P4/i.test(name);
+    say('chipinfo', lines.join('\n') + (p4 ? '' : '\n\nThis is not an ESP32-P4, so it is not a Tab5.'), p4 ? 'ok' : 'bad');
+  } catch (e) {
+    say('chipinfo', 'Could not read the chip: ' + (e.name || 'Error') + ': ' + e.message, 'bad');
+  }
+  // Back to the firmware it was running; the port drops off USB and
+  // comes back as the chip resets.
+  const old = port, since = Date.now();
+  if (loader) await backToFirmware(loader, transport, terminal, old);
+  try { if (transport) await transport.disconnect(); } catch (e) { /* already closed */ }
+  if (loader) await afterReset(old, since, 'chipinfo');
+  busy = false;
+  buttons();
+};
+
+// ---- flashing ----------------------------------------------------------
+
+// The deploy puts each project's newest release's _standalone.bin in
+// firmware/, listed in firmware/index.json (see pages.yml). Release
+// downloads from github.com have no CORS headers, so the page cannot
+// fetch them itself.
+let published = [];
+(async () => {
+  const box = $('firmware');
+  try {
+    const res = await fetch('firmware/index.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error(res.status);
+    published = await res.json();
+  } catch (e) {
+    box.textContent = 'No published firmware here (a local copy of the page?). A file from this computer still works.';
+    return;
+  }
+  box.className = '';
+  box.replaceChildren(...published.map((f, i) => {
+    const l = document.createElement('label');
+    l.innerHTML = `<input type="radio" name="fw" value="${i}"> <span></span> <span class="muted"></span>`;
+    l.children[1].textContent = f.project + ' ' + f.tag;
+    l.children[2].textContent = '(' + (f.size / 1048576).toFixed(1) + ' MB, ' + f.file + ')';
+    // the release it came from, to download by hand; outside the label,
+    // so following the link does not also choose the firmware
+    const div = document.createElement('div');
+    div.append(l);
+    if (/^https:\/\/github\.com\//.test(f.release || '')) {
+      const a = document.createElement('a');
+      a.href = f.release; a.textContent = 'Release page'; a.className = 'release';
+      a.target = '_blank'; a.rel = 'noopener';
+      div.append(a);
+    }
+    return div;
+  }));
+  if (!published.length) box.textContent = 'No project had a release when this page was published.';
+})();
+document.addEventListener('change', e => {
+  if (e.target.name === 'fw' || e.target.id === 'fwfile') {
+    if (e.target.id === 'fwfile') document.querySelector('input[name=fw][value=file]').checked = true;
+    const name = chosenLabel();
+    if (!busy) say('flashinfo', name ? 'Ready to flash ' + name + '.' : 'Choose a file.', 'muted');
+    buttons();
+  }
+});
+
+function loadScript(src, integrity) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    Object.assign(s, { src, integrity, crossOrigin: 'anonymous', onload: resolve, onerror: () => reject(new Error('could not load ' + src)) });
+    document.head.append(s);
+  });
+}
+
+async function sha256(bytes) {
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  return Array.from(h, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// The bytes to flash, and what to call them.
+async function chosenImage() {
+  const pick = document.querySelector('input[name=fw]:checked').value;
+  if (pick === 'file') {
+    const f = $('fwfile').files[0];
+    if (!f) throw new Error('No file chosen.');
+    return { name: f.name, data: new Uint8Array(await f.arrayBuffer()) };
+  }
+  const f = published[+pick];
+  const res = await fetch('firmware/' + f.path);
+  if (!res.ok) throw new Error('Downloading ' + f.file + ' failed: ' + res.status);
+  const data = new Uint8Array(await res.arrayBuffer());
+  if (await sha256(data) !== f.sha256) throw new Error(f.file + ' did not download whole (its SHA-256 differs from the release\'s).');
+  return { name: f.project + ' ' + f.tag, data };
+}
+
+// A merged image starts at 0x0. On the P4 the bootloader is at 0x2000, so
+// the file has 0x2000 bytes of 0xFF and then an image header (0xE9) with
+// chip ID 18 (ESP32-P4) at byte 12. An app-only .bin starts with 0xE9 at
+// byte 0 instead, and flashed at 0x0 would leave the Tab5 unbootable.
+function checkStandalone(data) {
+  if (data.length < 0x10000) return 'too small to be a standalone image';
+  if (data[0] === 0xE9) return 'an app-only image (it starts with an image header); the _standalone.bin is the one to flash';
+  if (data[0x2000] !== 0xE9) return 'not an ESP32-P4 standalone image (no bootloader at 0x2000)';
+  const chipId = data[0x2000 + 12] | (data[0x2000 + 13] << 8);
+  if (chipId !== 18) return 'built for another chip (chip ID ' + chipId + ', the P4 is 18)';
+  return null;
+}
+
+$('flash').onclick = async () => {
+  const label = chosenLabel();
+  if (!label) return;
+  busy = true; buttons();
+  // The port prompt first, while the click still counts as the user's;
+  // then the warning, then everything else.
+  if (!port) port = await choosePort();
+  if (!port) {
+    say('flashinfo', 'No port chosen, so nothing was written.', 'bad');
+    busy = false; buttons(); return;
+  }
+  if (!confirm('Flash ' + label + ' onto the Tab5?\n\nThis erases the settings saved on it. '
+      + 'The SD card and the FAT partition are not touched.\n\nKeep it plugged in until it restarts.')) {
+    say('flashinfo', 'Cancelled; nothing was written.', 'muted');
+    busy = false; buttons(); return;
+  }
+  const bar = $('progress');
+  outHeading('Flashing ' + label);
+  const terminal = {
+    clean() { /* Output is never cleared but by its Clear button */ },
+    writeLine(s) { terminal.write(s + '\n'); },
+    write(s) { outWrite(s); },
+  };
+  let transport = null, loader = null, writing = false, flashed = false;
+  try {
+    say('flashinfo', 'Getting the image...', 'muted');
+    const img = await chosenImage();
+    const bad = checkStandalone(img.data);
+    if (bad) throw new Error(img.name + ' is ' + bad + '. Nothing was written.');
+
+    say('flashinfo', 'Loading esptool-js and spark-md5...', 'muted');
+    const { ESPLoader, Transport } = await import('esptool-js');
+    if (!window.SparkMD5) await loadScript('https://cdn.jsdelivr.net/npm/spark-md5@3.0.2/spark-md5.min.js',
+      'sha384-WAahC3S+69Co45zyyuhCjvdMwo7a42Yn0mM0IgZIUlYNebG24AVkPUltj3BQnM85');
+
+    transport = new Transport(port);
+    loader = new ESPLoader({ transport, baudrate: 115200, terminal });
+    say('flashinfo', 'Resetting into the bootloader...', 'muted');
+    const name = await loader.main('default_reset');
+    if (!/ESP32-P4/i.test(name)) throw new Error('This is ' + name + ', not an ESP32-P4. Nothing was written.');
+
+    say('flashinfo', 'Writing ' + img.name + '... keep the Tab5 plugged in.', 'muted');
+    bar.hidden = false; bar.value = 0;
+    writing = true;
+    await loader.writeFlash({
+      fileArray: [{ data: img.data, address: 0x0 }],
+      // the merged image's header already says how the flash is set up
+      flashMode: 'keep', flashFreq: 'keep', flashSize: 'keep',
+      eraseAll: false, compress: true,
+      reportProgress: (i, written, total) => { bar.value = written / total; },
+      calculateMD5Hash: image => SparkMD5.ArrayBuffer.hash(image.slice().buffer),
+    });
+    flashed = true;
+    say('flashinfo', 'Wrote and checked ' + img.name + ' (' + img.data.length + ' bytes, MD5 matched). Restarting the Tab5 into it.'
+      + (isLauncher(label) ? '\nNext, step 3 checks that Launcher answers.' : ''), 'ok');
+    if (isLauncher(label)) { launcherFlashed = true; say('launcherinfo', 'Not checked yet.', 'muted'); }
+  } catch (e) {
+    say('flashinfo', (writing ? 'Flashing stopped: ' : '') + (e.name && e.name !== 'Error' ? e.name + ': ' : '') + e.message
+      + (writing && !flashed ? '\nIf it stopped partway, the Tab5 may not boot until it is flashed again; it can still get into the bootloader.' : ''), 'bad');
+  }
+  bar.hidden = true;
+  const old = port, since = Date.now();
+  if (loader) await backToFirmware(loader, transport, terminal, old);
+  try { if (transport) await transport.disconnect(); } catch (e) { /* already closed */ }
+  if (loader) await afterReset(old, since, 'flashinfo');
+  busy = false;
+  buttons();
+  // Launcher just went on: check its console straight away
+  if (flashed && isLauncher(label) && port) await launcherCheck({});
+};
+
+// ---- Launcher's console --------------------------------------------------
+
+// Launcher (github.com/bmorcelli/Launcher, src/serial_console.cpp) reads
+// one command per line on this port from early in its boot, and answers
+// "version" with "Launcher <version>" and "whoami" with the device name,
+// "M5Stack Tab5" on this build; "reboot" restarts it. While it waits to
+// boot an installed app it also prints "Press the button to enter the
+// Launcher!" every half second, which is not an answer.
+const BANNER = /^Press the button to enter the Launcher!$/;
+
+// The port to talk on: the one in hand, else the one Espressif port the
+// browser already allows (the Tab5 back after a reset), else the prompt
+// -- which only works straight from a click.
+async function launcherPort() {
+  if (port) return port;
+  try {
+    const ports = (await navigator.serial.getPorts()).filter(p => p.getInfo().usbVendorId === ESPRESSIF_VID);
+    if (ports.length === 1) { say('info', 'Using the port allowed before.\n' + describe(ports[0]), 'ok'); return ports[0]; }
+  } catch (e) { /* fall back to asking */ }
+  return choosePort();
+}
+
+// Open p, copy what arrives into Output and into lines, and give a way
+// to send a command and wait for a matching reply. lost is set if the
+// port goes away (the Tab5 reset).
+async function consoleSession(p) {
+  const s = { lines: [], lost: null };
+  const enc = new TextEncoder();
+  await p.open({ baudRate: 115200 });  // the USB-Serial/JTAG ignores the rate
+  const rd = p.readable.getReader(), wr = p.writable.getWriter();
+  const reading = (async () => {
+    const dec = new TextDecoder();
+    let part = '';
+    try {
+      for (;;) {
+        const { value, done } = await rd.read();
+        if (done) break;
+        const text = dec.decode(value, { stream: true });
+        outWrite(text);
+        const pieces = (part + text).split('\n');
+        part = pieces.pop();
+        for (const l of pieces) s.lines.push(l.replace(/\r$/, '').trim());
+      }
+    } catch (e) { s.lost = e; }
+  })();
+  s.send = cmd => wr.write(enc.encode(cmd + '\n'));
+  // Send a command; the first new line matching re, or null after ms.
+  s.ask = async (cmd, re, ms) => {
+    const from = s.lines.length;
+    await s.send(cmd);
+    for (const end = Date.now() + ms; Date.now() < end && !s.lost; await sleep(50)) {
+      const hit = s.lines.slice(from).find(l => l && !BANNER.test(l) && re.test(l));
+      if (hit) return hit;
+    }
+    return null;
+  };
+  s.close = async () => {
+    try { await rd.cancel(); } catch (e) { /* closed */ }
+    await reading;
+    try { rd.releaseLock(); } catch (e) { /* closed */ }
+    try { wr.releaseLock(); } catch (e) { /* closed */ }
+    try { await p.close(); } catch (e) { /* already closed or unplugged */ }
+  };
+  return s;
+}
+
+// Step 3. With reboot, first restart Launcher with its "reboot" command
+// and wait for the Tab5 to come back -- the fix for a dark screen.
+async function launcherCheck({ reboot = false }) {
+  busy = true; buttons();
+  port = await launcherPort();
+  if (!port) { say('launcherinfo', 'No port chosen.', 'bad'); busy = false; buttons(); return; }
+
+  outHeading(reboot ? 'Restarting Launcher, then talking to it' : 'Talking to Launcher');
+  let s = null, opened = Date.now();
+  try {
+    if (reboot) {
+      say('launcherinfo', 'Restarting Launcher...', 'muted');
+      const since = Date.now();
+      s = await consoleSession(port);
+      await s.send('reboot');
+      for (const end = Date.now() + 5000; Date.now() < end && !s.lost; ) await sleep(100);
+      await s.close(); s = null;
+      outWrite('\n--- restarted; waiting for the Tab5 to come back ---\n');
+      say('launcherinfo', 'Waiting for the Tab5 to come back...', 'muted');
+      if (!await afterReset(port, since, 'launcherinfo')) throw new Error('The Tab5 did not come back within 2 minutes after "reboot".');
+    }
+
+    say('launcherinfo', 'Opening the port...', 'muted');
+    opened = Date.now();
+    s = await consoleSession(port);
+    let version = null;
+    for (const end = Date.now() + 20000; !version && Date.now() < end && !s.lost; ) {
+      say('launcherinfo', 'Asking for its version...', 'muted');
+      version = await s.ask('version', /^Launcher\s+\S/, 1500);
+    }
+    if (s.lost) throw s.lost;
+    if (!version) throw new Error('No answer to "version" in 20 seconds. Is Launcher on the Tab5\'s screen? '
+      + 'An app it started has a console of its own, or none.');
+
+    const who = await s.ask('whoami', /./, 2000);
+
+    say('launcherinfo', 'Reading its partition table...', 'muted');
+    const from = s.lines.length;
+    await s.send('partitions');
+    await sleep(1500);
+    const table = s.lines.slice(from).filter(l => l && !BANNER.test(l));
+
+    const tab5 = who === 'M5Stack Tab5';
+    say('launcherinfo', [
+      'Launcher answers on this port.' + (reboot ? ' (restarted first)' : ''),
+      'version:    ' + version,
+      'whoami:     ' + (who || 'no answer') + (who && !tab5 ? '  (not "M5Stack Tab5": a build for another board?)' : ''),
+      'partitions:', ...table.map(l => '  ' + l),
+      '',
+      'Screen still dark? Restart Launcher.',
+    ].join('\n'), tab5 ? 'ok' : 'bad');
+  } catch (e) {
+    say('launcherinfo', 'Could not talk to Launcher: ' + (e.name && e.name !== 'Error' ? e.name + ': ' : '') + e.message
+      + (s && s.lost ? '\nThe port went away -- the Tab5 may have reset. Try again.' : ''), 'bad');
+  }
+  const gone = s && s.lost;
+  if (s) await s.close();
+  // nothing here resets the Tab5 unless asked to, so the port stays
+  // chosen -- unless it went away; then wait for it to come back
+  if (gone) await afterReset(port, opened, 'launcherinfo');
+  busy = false;
+  buttons();
+}
+
+$('launchertest').onclick = () => launcherCheck({});
+$('launcherreboot').onclick = () => launcherCheck({ reboot: true });
+</script>
+</body>
+</html>
