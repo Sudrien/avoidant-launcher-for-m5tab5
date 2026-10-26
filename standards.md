@@ -5,6 +5,13 @@ Duplicitous treats it as one of its own.
 
 ## Required
 
+- **Named for itself, not the board.** A binary's name must not start
+  with `tab5` or `m5tab5` (any case): on a card full of Tab5 firmware,
+  those all sort together and say nothing. The preferred form is
+  `<given name>-<purpose>-for-m5tab5`, as in
+  `defeatist-music-player-for-m5tab5` and
+  `aimless-moving-map-for-m5tab5`.
+
 - **Built by a GitHub Action.** Releases come from a workflow in the
   project's own repository, not from someone's machine.
 
