@@ -213,3 +213,10 @@ the later one is what happened.
   reads it: the feckless components checked against their tags here,
   the registry ones unreachable from a session. The vendored
   `components/usb_host_msc` is not in the lock, so it is not checked.
+- **0022** CLAUDE.md: what was learned, and what is planned. A "Learned
+  on hardware" list under m5tab5/ (the USB-Serial/JTAG driver dropping
+  bytes, the two kinds of cyan, factory erasing otadata, a shared port,
+  the exFAT card, the temporary markers); a summary of step 3's
+  conversation with the console under web/; and "Planned, not built" --
+  first, "flash standalone" and "flash with the Duplicitous launcher"
+  side by side -- with what has not yet been seen on a Tab5.

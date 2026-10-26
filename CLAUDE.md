@@ -83,7 +83,55 @@ from defeatist-music-player-for-m5tab5's family of components.
 - **Run on hardware:** see the series in `ARCHITECTURE.md` for what each
   build did on a Tab5.
 
+### Learned on hardware
+
+- **ESP-IDF's USB-Serial/JTAG driver drops what does not fit its ring
+  buffer**, after USB has acknowledged it (`xRingbufferSendFromISR()`
+  unchecked, 5.5 and 6.1). Anything that streams into the Tab5 must not
+  go through it: `rb` masks the receive interrupt and reads the FIFO
+  itself, so unread bytes make the hardware NAK and USB holds the
+  sender (0011). Logs are off during a transfer: a log line is protocol
+  bytes to the sender.
+- **Cyan is two different things.** A DSI underrun (the scanout missing
+  its PSRAM fetch) -- esp_lcd logs `underrun happens` for each; check
+  the log before assuming one. And a panel with no DSI signal, between
+  a reset and the next app's panel init -- no log at all. 0013's
+  markers showed the second; 0014 blanks the panel and backlight on
+  every `esp_restart()`. Long flash erases are a candidate for the
+  first; `install` erases a sector ahead of each write (0012).
+- **Choosing factory erases otadata.** An app's "exit to Launcher"
+  (`esp_ota_set_boot_partition(factory)`) leaves app2 with no record; a
+  reset out of app2 comes back by rollback with app2 ABORTED. That is how
+  the countdown tells the two apart (0015).
+- **Two programs can hold the port on Linux** and split the Tab5's
+  output between them, a few bytes each. `idf.py monitor` left open does
+  it. The page catches it at `version` and with `echo` (0018, 0019).
+- **The card was exFAT** -- four `sdmmc_read_blocks failed (0x104)` and a
+  failed mount under FAT32-only FatFs. exFAT is vendored at configure
+  time (`cmake/exfat.cmake`), and storage is feckless_storage_handler
+  (0007).
+- **`PHASE()` markers in main.c are temporary** (0013): out once a Tab5
+  shows the restart dark after 0014.
+
 ## web/
+
+### Step 3 and Duplicitous's console
+
+The page opens a session per action -- it cannot hold the port between
+them, because flashing needs it -- and always starts with `version`
+(`askVersion()`, which stops early on damaged answers), then `echo`
+eight times (`portIsOurs()`). Sending: `vols`, `sha256` of each file at
+its destination (the same file is skipped, a different one replaced),
+`rb -gf <dir>`, then YMODEM-G from `web/ymodem.js` on the session's raw
+bytes, the Tab5's `OK`/`ERR` verdict, and `sha256` again to check each
+file landed. `EVENT` and `VOL` lines, in any session or the output view,
+keep the storage line current. `m5tab5/main/console.h` is the protocol.
+
+`web/ymodem.js` and `m5tab5/main/ymodem.c` are tested against each other
+by `m5tab5/test/ymodem/send.mjs`, and the receiver against lrzsz's `sz`
+by `run.sh`. The page itself has been run in headless Chromium against
+a fake Web Serial port (a stand-in console handing `rb` to the same
+receiver), but that test is not in the tree yet.
 
 ### Confirmed on hardware
 
@@ -99,12 +147,53 @@ Firefox (151+, desktop) has been tested against a real Tab5: the port prompt was
 
 Each project's release has two .bins: `..._standalone.bin`, from `idf.py merge-bin`, written at 0x0, and the app alone, for the app partition. The page flashes only the standalone one, checked first: on the P4 the bootloader is at 0x2000, so the file is 0x2000 bytes of 0xFF and then an image header (0xE9, chip ID 18 at byte 12). An app-only .bin starts with 0xE9 and is refused.
 
-The merged image runs from 0x0 to the end of the app, so it overwrites NVS (0x9000) -- settings are lost -- and stops short of the FAT partitions (0x610000 in the OTA layouts), which survive. The four projects use two partition layouts (two-OTA-slot plus FAT, and factory only); the image carries its own table, so switching between projects is fine.
+The merged image runs from 0x0 to the end of the app, so it overwrites NVS (0x9000) -- settings are lost -- and stops short of the FAT partitions (0x610000 in the OTA layouts), which survive. The projects use their own partition layouts (two OTA slots plus FAT, factory only, and Duplicitous's factory + app2 + FAT); the image carries its own table, so switching between them is fine.
 
 bmorcelli/Launcher 2.9.1 was offered here, with a step that talked to its console, until 0021: it takes files only by its own `flash firmware` framing, not by what this page now sends, so it went. ARCHITECTURE.md has what was learned on hardware from it.
 
-After any reset the page makes (flash, chip read, the output view's Reset, booting app2 from step 3) it takes the Tab5's port back without a prompt: the browser keeps the permission per device (vendor, product, serial number -- the P4's USB-Serial/JTAG reports its MAC), and reacquirePort() waits for the "connect" event or a new port in getPorts(), accepting the same SerialPort object back too, in case a browser reuses it. The output view follows resets like idf.py monitor. Firefox's own hotplug test (dom/webserial/tests/mochitest/test_serial_hotplug.html) expects the permission kept, the port back in getPorts(), a connect event, and the same SerialPort object. On the Tab5 in Firefox, 0005 still prompted; a likely cause was a race (a connect event fired before the wait began was ignored), fixed in 0006 by timing from when the reset started and by accepting the same object once listed again after a disconnect. Every wait now logs "[port] ..." lines to Output (connect/disconnect events, getPorts(), how it ended): read those before guessing again. With 0006 on the Tab5 in Firefox the [port] lines showed the port handling working -- after a manual RESET, a connect event for the same object (#1) -- but also the real problem: after the flash's watchdog reset the Tab5 stayed off USB (27 s, until RESET was pressed). idf.py monitor's DTR/RTS reset (rst:0x17) brought the firmware up fine, so 0007 resets with the DTR-off RTS pulse first and uses the watchdog only if the Tab5 has not dropped off USB within 1.5 s; and any wait asks for RESET after 5 s and keeps waiting up to 2 minutes. Whether the RTS pulse resets the Tab5 out of the stub is not yet seen on hardware: look for "[port] the RTS pulse reset it".
+After any reset the page makes (flash, chip read, the output view's Reset, booting app2 from step 3) it takes the Tab5's port back without a prompt: the browser keeps the permission per device (vendor, product, serial number -- the P4's USB-Serial/JTAG reports its MAC), and reacquirePort() waits for the "connect" event or a new port in getPorts(), accepting the same SerialPort object back too, in case a browser reuses it. The output view follows resets like idf.py monitor. Firefox's own hotplug test (dom/webserial/tests/mochitest/test_serial_hotplug.html) expects the permission kept, the port back in getPorts(), a connect event, and the same SerialPort object. On the Tab5 in Firefox, the flasher's 0005 (before it moved here, in a series of its own) still prompted; a likely cause was a race (a connect event fired before the wait began was ignored), fixed in 0006 by timing from when the reset started and by accepting the same object once listed again after a disconnect. Every wait now logs "[port] ..." lines to Output (connect/disconnect events, getPorts(), how it ended): read those before guessing again. With 0006 on the Tab5 in Firefox the [port] lines showed the port handling working -- after a manual RESET, a connect event for the same object (#1) -- but also the real problem: after the flash's watchdog reset the Tab5 stayed off USB (27 s, until RESET was pressed). idf.py monitor's DTR/RTS reset (rst:0x17) brought the firmware up fine, so 0007 resets with the DTR-off RTS pulse first and uses the watchdog only if the Tab5 has not dropped off USB within 1.5 s; and any wait asks for RESET after 5 s and keeps waiting up to 2 minutes. Whether the RTS pulse resets the Tab5 out of the stub is not yet seen on hardware: look for "[port] the RTS pulse reset it".
 
 Output is append-only (the newest 200,000 characters): every action adds a "=== <time> <action> ===" heading instead of clearing it, so a whole session -- flash, resets, [port] lines, the Tab5's boot logs -- can be copied in one piece for a report. Only its Clear button empties it. Don't add clearing back.
 
 Release downloads from github.com have no CORS headers, so pages.yml copies each project's newest standalone .bin into `firmware/` with `firmware/index.json` (project, tag, path, size, SHA-256), daily and on push. The page checks the SHA-256 after downloading, and esptool-js checks the MD5 of what it wrote (spark-md5, pinned like esptool-js).
+
+## Planned, not built
+
+In rough order. Each is a patch (or a few) of its own when it comes.
+
+- **Two ways to flash, side by side.** "Flash standalone": what step 2
+  does now -- a project's `_standalone.bin` from 0x0, replacing whatever
+  was there, Duplicitous included. "Flash with the Duplicitous
+  launcher": Duplicitous's standalone image at 0x0 and the project's
+  app-only `.bin` into app2 (0x210000), in one esptool-js session, so
+  the Tab5 comes up in Duplicitous with the project in app2 -- no card
+  needed. Needs: pages.yml to publish each release's app-only `.bin`
+  beside the standalone one (standards.md already requires both), and
+  Duplicitous's own release among them; the app to fit app2 (4 MB);
+  otadata left erased, so the first boot is Duplicitous's menu with
+  "Boot app2", or written to select app2 once (decide which); and
+  Duplicitous's record of what app2 holds (NVS `minilauncher`/`app2`,
+  set by `install`) either written too or left to fall back to the
+  image's project name. The standalone path keeps its checks; the
+  Duplicitous path checks the app image (0xE9, chip 18) instead.
+- **USB drive mode on the USB-C port.** The Tab5's USB-C reaches the
+  P4's full-speed PHY 0 directly (schematic: GPIO24/25, the CH9102F
+  footprint not fitted), so TinyUSB can take it from the USB-Serial/JTAG
+  and show the card as a drive, as Launcher's `massStorage.cpp` does.
+  The console and the flasher's auto-reset are gone while it is a
+  drive; it needs an on-screen Done.
+- **Vendored components in the dependency check.**
+  `m5tab5/components/usb_host_msc` (and defeatist's copies) are not in
+  any lock, so `tools/depcheck.py` never compares them with the
+  registry.
+- **The headless page test into the tree**, beside
+  `m5tab5/test/ymodem/`.
+- **standards.md for Duplicitous itself:** the library / version /
+  licence list on the device and in the documentation, generated at
+  build time.
+- **The rev 1 Tab5's panel** (ILI9881C): feckless_graphics_handler
+  drives only the rev 2 ST7121, so a rev 1 board's screen stays dark.
+
+Not yet seen on a Tab5: a USB drive mounting and receiving; a YMODEM-G
+send completing after 0011, and its speed; an install after 0012
+without the strobe; the restart after 0014 staying dark.
