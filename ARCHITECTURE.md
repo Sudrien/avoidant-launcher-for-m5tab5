@@ -94,3 +94,13 @@ the later one is what happened.
   between erases (the stall is inside each one), and
   `CONFIG_SPI_FLASH_AUTO_SUSPEND` (only for flash chips IDF lists; this
   one, 0x184046, is not known to be among them).
+- **0013** m5tab5: phase markers for the cyan screen. *On a Tab5*: a cyan
+  screen after touching to cancel the autoboot countdown -- no flash
+  erase in that path, so not 0012's mechanism. Between the touch and the
+  menu come flash reads (`install_present()`: app2's header, NVS), the
+  card scan, and a full-screen blit (1.8 MB PSRAM to PSRAM while the
+  panel scans out of PSRAM). Rather than guess -- defeatist's cyan flash
+  was none of the six things patched -- `PHASE()` lines (`W (...) phase:`)
+  now bracket each, so `idf.py monitor` shows which one the `underrun
+  happens` lines fall inside. If none appear at all, it is not an
+  underrun. Temporary; removed by the patch that fixes the cause.

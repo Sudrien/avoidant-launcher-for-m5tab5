@@ -41,6 +41,16 @@
 static const char *TAG = "duplicitous";
 
 #define AUTOBOOT_MS     3000
+
+/*
+ * Phase markers, for finding a cyan screen (a DSI underrun). IDF's
+ * esp_lcd logs each underrun from its ISR ("can't fetch data from
+ * external memory fast enough, underrun happens"); these say what was
+ * running at the time, in the same log, with a millisecond clock.
+ * Warnings, so the console's WARN level lets them through. Temporary:
+ * out again once the cause is found (ARCHITECTURE.md, 0013).
+ */
+#define PHASE(...) ESP_LOGW("phase", __VA_ARGS__)
 #define BRIGHTNESS      60
 
 /* Layout, portrait 720 x 1280. */
@@ -364,10 +374,19 @@ static void menu(void)
     uint32_t gen = 0;
     for (;;) {
         if (xfer_active()) { show_xfer(); rescan = true; }
-        if (rescan) { gen = storage_generation(); scan(); page = 0; rescan = false; }
+        if (rescan) {
+            gen = storage_generation();
+            PHASE("scan %s ...", s_dir[0] ? s_dir : "(volumes)");
+            scan();
+            PHASE("scan done, %d entries", s_n);
+            page = 0;
+            rescan = false;
+        }
 
         char app[64] = "";
+        PHASE("read app2 header and NVS ...");
         bool have_app = install_present(app, sizeof app);
+        PHASE("read done");
         /* row 0 is "boot app2" when there is one; the files follow */
         int extra = have_app ? 1 : 0;
         int pages = (s_n + extra + ROWS - 1) / ROWS;
@@ -422,7 +441,9 @@ static void menu(void)
         char pg[24];
         snprintf(pg, sizeof pg, "%d / %d", page + 1, pages);
         text(W - PAD - gfx_text_w(pg, SCALE), by - TEXT_H - 8, pg, W, C_DIM);
+        PHASE("blit the menu ...");
         show();
+        PHASE("blit done");
 
         int x, y;
         if (!tap_or_change(&x, &y, &gen)) { rescan = true; continue; }
@@ -476,7 +497,7 @@ static void autoboot(void)
         text_centred(H / 2 + 160, "Touch the screen for the menu", C_TEXT);
         show();
         int x, y;
-        if (wait_tap(&x, &y, left < 250 ? left : 250)) return;
+        if (wait_tap(&x, &y, left < 250 ? left : 250)) { PHASE("autoboot: touched, to the menu"); return; }
         if (xfer_active()) return;      /* a computer is sending: stay */
     }
     install_boot();
@@ -516,6 +537,8 @@ void app_main(void)
 
     if (console_start() != ESP_OK) ESP_LOGE(TAG, "no serial console");
 
+    PHASE("autoboot");
     autoboot();
+    PHASE("menu");
     menu();
 }
