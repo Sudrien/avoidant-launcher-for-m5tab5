@@ -78,3 +78,19 @@ the later one is what happened.
   ring buffer holds, and reads the FIFO directly until the transfer
   ends; unread bytes make the hardware NAK, and the host waits. Built
   with 5.5.1 and 6.1.
+- **0012** m5tab5: install erases as it writes. *On a Tab5*: a cyan
+  strobe between loading the `.bin` and the install's progress bar.
+  That window is `esp_ota_begin(dest, len)`, which erased the image's
+  whole length in one call before the first write; IDF's DSI driver
+  says an underrun can turn the panel blue, and flash erases hold the
+  cache the panel's DMA competes with. Taken as the likely cause, not a
+  proven one -- defeatist's "cyan flash" history is six patches against
+  the wrong mechanism -- so the test is `idf.py monitor` during an
+  install: `underrun happens` lines during the strobe confirm it, none
+  means look elsewhere. Now `OTA_WITH_SEQUENTIAL_WRITES`: a sector
+  erased ahead of each write. Not taken from the suggestion this came
+  with: erasing the rest of app2 after the image (useless -- nothing
+  reads past the image -- and the same stall again), `vTaskDelay()`
+  between erases (the stall is inside each one), and
+  `CONFIG_SPI_FLASH_AUTO_SUSPEND` (only for flash chips IDF lists; this
+  one, 0x184046, is not known to be among them).

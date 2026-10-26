@@ -122,7 +122,18 @@ esp_err_t install_from_file(const char *path, install_progress_fn cb, void *ctx,
     if (!buf) FAIL("out of memory");
 
     ESP_LOGI(TAG, "%s: app at 0x%x, %u bytes -> %s", path, (unsigned)start, (unsigned)len, dest->label);
-    esp_err_t e = esp_ota_begin(dest, len, &ota);   /* erases len, not the slot */
+    /*
+     * Erase as we go, a sector ahead of each write, not len up front.
+     * esp_ota_begin(dest, len) erases the whole image's length in one call
+     * -- seconds, with nothing redrawn -- and while flash is erasing the
+     * cache is held and the panel's DMA can miss its PSRAM fetches: an
+     * underrun, which on this panel is a cyan strobe (seen between
+     * "Installing" and the bar; esp_lcd logs "underrun happens" for each).
+     * Sector by sector, each stall is short and the bar moves throughout.
+     * What lies past the image in app2 is left as it was: the bootloader
+     * and esp_ota_end() stop at the image's own length.
+     */
+    esp_err_t e = esp_ota_begin(dest, OTA_WITH_SEQUENTIAL_WRITES, &ota);
     if (e != ESP_OK) FAIL("ota begin: %s", esp_err_to_name(e));
     ota_open = true;
 
