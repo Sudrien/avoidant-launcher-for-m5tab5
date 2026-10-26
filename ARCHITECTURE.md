@@ -149,3 +149,16 @@ the later one is what happened.
   Check storage, the USB drive absent and then too full, and `EVENT`
   lines in the output view (one split across two reads) updating the
   line and the volume menu.
+- **0018** A test that nothing else is reading the port. On Linux two
+  programs can hold one serial port, and each USB read goes to whichever
+  asks first -- a terminal or `idf.py monitor` left open takes pieces of
+  the Tab5's replies (it was the first suspect for 0010's failure, wrongly
+  then, but it would fail a transfer the same way). `echo <text>` answers
+  `ECHO <sha256 of text>`: a hash, so it shows the Tab5 got the whole
+  token, not that something echoed it. The page sends eight random
+  64-hex tokens and checks each hash; any missing or damaged answer is
+  reported as a shared port, with what to close. It runs before every
+  Send, and as "Test the port" in step 4. In headless Chromium against
+  the fake port: 8 of 8 alone; with a fake second reader taking every
+  third 16-byte chunk, caught in the first round, by the button and by
+  Send.

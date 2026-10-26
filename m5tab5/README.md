@@ -73,6 +73,7 @@ card, `/usb/...` for the drive.
 
     version              Duplicitous <version>
     whoami               M5Stack Tab5
+    echo <text>          ECHO <SHA-256 of text>: is anything else reading?
     vols                 VOL sd mounted total=<bytes> free=<bytes> |
                          VOL usb absent, one line each, then OK
     ls [dir]             D <name> | F <size> <name>, then OK; with no

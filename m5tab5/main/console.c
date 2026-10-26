@@ -305,6 +305,24 @@ static void progress(size_t done, size_t total, void *ctx)
     }
 }
 
+/* echo <text>: "ECHO <sha256 of text, hex>". For the host to check that
+ * it, and nothing else on the computer, is reading this port: a second
+ * program with the port open takes some of what the Tab5 sends, and a
+ * reply with pieces missing will not match. A hash rather than the text
+ * back, so it shows the Tab5 received all of it, not that a terminal
+ * echoed it. */
+static void cmd_echo(const char *arg)
+{
+    sha256_t h;
+    uint8_t d[32];
+    char hex[65];
+    sha256_init(&h);
+    sha256_update(&h, arg, strlen(arg));
+    sha256_final(&h, d);
+    for (int i = 0; i < 32; i++) sprintf(hex + 2 * i, "%02x", d[i]);
+    reply("ECHO %s", hex);
+}
+
 /* vols: "VOL sd mounted total=<bytes> free=<bytes>" or "VOL usb absent"
  * for each, then OK. */
 static void cmd_vols(void)
@@ -334,9 +352,10 @@ static void handle(char *line)
         reply("OK");
         return;
     }
+    if (!strcasecmp(cmd, "echo")) { cmd_echo(arg); return; }
     if (!strcasecmp(cmd, "whoami")) { reply("M5Stack Tab5"); reply("OK"); return; }
     if (!strcasecmp(cmd, "help")) {
-        reply("version | whoami | help | vols | ls [dir] | df [vol] | rb [-f] [-g] <dir> | sha256 <path>");
+        reply("version | whoami | echo <text> | help | vols | ls [dir] | df [vol] | rb [-f] [-g] <dir> | sha256 <path>");
         reply("rm <path> | mkdir <path> | install <path> | boot | reboot");
         reply("OK");
         return;

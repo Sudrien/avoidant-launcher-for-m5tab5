@@ -9,6 +9,10 @@
  *
  *   version                 "Duplicitous <version>", then OK
  *   whoami                  "M5Stack Tab5", then OK
+ *   echo <text>             "ECHO <sha256 of text, 64 hex digits>": a
+ *                           host checks no other program on the computer
+ *                           is reading the port (it would take pieces of
+ *                           the reply)
  *   help                    the command list, then OK
  *   vols                    "VOL sd mounted total=<bytes> free=<bytes>" or
  *                           "VOL usb absent", one line each, then OK

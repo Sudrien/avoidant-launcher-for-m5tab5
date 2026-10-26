@@ -66,7 +66,12 @@ happens.</p>
 <label><input type="radio" name="sendsrc" value="files"> Files from this computer:
   <input type="file" id="sendfiles" multiple></label>
 <p>On the Tab5: <span id="vols" class="muted">not checked yet</span>
-  <button id="volcheck" disabled>Check storage</button></p>
+  <button id="volcheck" disabled>Check storage</button>
+  <button id="porttest" disabled>Test the port</button></p>
+<p class="muted">"Test the port" checks that nothing else on this computer -- a
+terminal, <code>idf.py monitor</code> -- has the Tab5's port open as well: if
+something does, it takes pieces of what the Tab5 sends, and a transfer
+fails. It runs by itself before every Send.</p>
 <label>To the <select id="sendvol"><option value="sd">microSD card</option><option value="usb">USB drive</option></select>,
   in the folder <input id="senddir" value="bins" size="24"></label>
 <label><input type="checkbox" id="sendforce"> Replace files that are already there</label>
@@ -146,6 +151,7 @@ if (!('serial' in navigator)) {
   $('pick').disabled = false;
   $('send').disabled = false;
   $('volcheck').disabled = false;
+  $('porttest').disabled = false;
   navigator.serial.addEventListener('disconnect', e => {
     lastDisconnect.set(e.target, Date.now());
     portLog('disconnect: ' + portName(e.target));
@@ -190,6 +196,7 @@ function buttons() {
   $('launcherreboot').disabled = !serial || listening || busy;
   $('send').disabled = !serial || listening || busy;
   $('volcheck').disabled = !serial || listening || busy;
+  $('porttest').disabled = !serial || listening || busy;
   // step 3 is for Launcher: shown once it is flashed, or while it is chosen
   $('launcherstep').hidden = !(launcherFlashed || isLauncher(chosenLabel()));
 }
@@ -870,6 +877,12 @@ $('send').onclick = async () => {
       throw new Error('This is ' + version + ', not Duplicitous: it cannot take files this way. Flash Duplicitous in steps 1 and 2.');
     report.push(version);
 
+    // nothing else reading the port, or the transfer would be torn apart
+    say('sendinfo', report.join('\n') + '\nTesting the port...', 'muted');
+    const bad = await portIsOurs(s);
+    if (bad) throw new Error(PORT_SHARED + ' (' + bad + ')');
+    report.push('The port is this page\'s alone.');
+
     // where it is going: there, and room for it
     const vol = $('sendvol').value;
     if (!await s.ask('vols', /^(OK|ERR)\b/, 5000)) throw new Error('No answer to "vols".');
@@ -944,6 +957,54 @@ $('send').onclick = async () => {
   const gone = s && (s.lost || booted);
   if (s) await s.close();
   if (gone) await afterReset(port, opened, 'sendinfo');
+  busy = false;
+  buttons();
+};
+
+// Whether this page, and nothing else on the computer, is reading the
+// port. Duplicitous answers "echo <text>" with "ECHO <sha256 of text>"; a
+// second program with the port open takes some of what the Tab5 sends,
+// so a reply arrives with pieces missing, or not at all. Several rounds,
+// each with a fresh random token, so one lucky round proves nothing.
+// Resolves with null when every round matched, else with what went wrong.
+async function portIsOurs(s, rounds = 8) {
+  for (let i = 0; i < rounds; i++) {
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, '0')).join('');
+    const want = 'ECHO ' + await sha256(new TextEncoder().encode(token));
+    const got = await s.ask('echo ' + token, /^ECHO\b/, 2000);
+    if (got !== want)
+      return 'round ' + (i + 1) + ' of ' + rounds + ': ' + (got ? 'the answer came back damaged' : 'no answer came back');
+  }
+  return null;
+}
+const PORT_SHARED = 'Something else on this computer seems to have the Tab5\'s port open -- a terminal, '
+  + 'idf.py monitor, another browser tab -- and is taking part of what the Tab5 sends. Close it, then try again.';
+
+// "Test the port", by itself.
+$('porttest').onclick = async () => {
+  busy = true; buttons();
+  port = await launcherPort();
+  if (!port) { say('vols', 'No port chosen.', 'bad'); busy = false; buttons(); return; }
+  outHeading('Testing that nothing else is reading the port');
+  let s = null, opened = Date.now();
+  try {
+    say('vols', 'Testing the port...', 'muted');
+    s = await consoleSession(port);
+    let version = null;
+    for (const end = Date.now() + 20000; !version && Date.now() < end && !s.lost; )
+      version = await s.ask('version', /^(Duplicitous|Launcher)\s+\S/, 1500);
+    if (s.lost) throw s.lost;
+    if (!version) throw new Error('No answer from the Tab5 at all. Is Duplicitous on its screen? If it is, ' + PORT_SHARED);
+    if (!/^Duplicitous/.test(version)) throw new Error(version + ' cannot take this test; Duplicitous can.');
+    const bad = await portIsOurs(s);
+    if (bad) throw new Error(PORT_SHARED + ' (' + bad + ')');
+    say('vols', 'The port is this page\'s alone: 8 of 8 answers came back whole.', 'ok');
+  } catch (e) {
+    say('vols', e.message, 'bad');
+  }
+  const gone = s && s.lost;
+  if (s) await s.close();
+  if (gone) await afterReset(port, opened);
   busy = false;
   buttons();
 };
