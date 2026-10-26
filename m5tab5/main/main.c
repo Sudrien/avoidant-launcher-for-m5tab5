@@ -36,6 +36,7 @@
 #include "console.h"
 #include "install.h"
 #include "vol.h"
+#include "xfer.h"
 
 static const char *TAG = "duplicitous";
 
@@ -304,11 +305,53 @@ static void up_dir(void)
     else *slash = '\0';
 }
 
-/* A tap, or false when a card or drive came or went first. */
+/* While the console is writing, say so -- what, where, how far -- and
+ * nothing else. Taps are ignored: the computer is driving. */
+static void show_xfer(void)
+{
+    xfer_t x;
+    uint32_t g = xfer_get(&x), drawn = g - 1;
+    int64_t last = 0;
+    while (x.active) {
+        int64_t now = esp_timer_get_time();
+        if (g != drawn && now - last > 150 * 1000) {
+            gfx_fill_rect(0, 0, W, H, C_BG);
+            header(x.what, x.where);
+            text_centred(H / 2 - 160, "From the computer on USB-C", C_DIM);
+            text_centred(H / 2 - 90, x.name[0] ? x.name : "waiting for the sender...", C_BIN);
+            const int y = H / 2;
+            gfx_fill_rect(PAD, y, W - 2 * PAD, 40, C_BTN);
+            if (x.total)
+                gfx_fill_rect(PAD, y, (int)((W - 2 * PAD) * (int64_t)x.done / (int64_t)x.total), 40, C_GO);
+            char s[64];
+            if (x.total) snprintf(s, sizeof s, "%d%%  (%llu / %llu KB)", (int)(x.done * 100 / x.total),
+                                  (unsigned long long)(x.done / 1024), (unsigned long long)(x.total / 1024));
+            else snprintf(s, sizeof s, "%llu KB", (unsigned long long)(x.done / 1024));
+            text_centred(y + 70, s, C_DIM);
+            show();
+            drawn = g;
+            last = now;
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+        g = xfer_get(&x);
+    }
+    touch_swallow();
+}
+
+static bool xfer_active(void)
+{
+    xfer_t x;
+    xfer_get(&x);
+    return x.active;
+}
+
+/* A tap, or false when a card or drive came or went, or the console
+ * started writing. */
 static bool tap_or_change(int *x, int *y, uint32_t *gen)
 {
     for (;;) {
         if (wait_tap(x, y, 500)) return true;
+        if (xfer_active()) return false;
         uint32_t g = storage_generation();
         if (g != *gen) { *gen = g; return false; }
     }
@@ -320,6 +363,7 @@ static void menu(void)
     bool rescan = true;
     uint32_t gen = 0;
     for (;;) {
+        if (xfer_active()) { show_xfer(); rescan = true; }
         if (rescan) { gen = storage_generation(); scan(); page = 0; rescan = false; }
 
         char app[64] = "";
@@ -433,6 +477,7 @@ static void autoboot(void)
         show();
         int x, y;
         if (wait_tap(&x, &y, left < 250 ? left : 250)) return;
+        if (xfer_active()) return;      /* a computer is sending: stay */
     }
     install_boot();
 }

@@ -8,3 +8,4 @@ managed_components/
 components/fatfs/
 # written by the CI build step
 version.txt
+test/ymodem/rx_host

@@ -60,28 +60,45 @@ a second OTA slot) will not find their data partitions.
 
 ## Serial console
 
-The USB-C port carries a line console that also sends files to the card
-or the drive. Each reply ends with a line starting `OK` or `ERR`. Paths
-start with the volume: `/sd/...` for the card, `/usb/...` for the drive.
+The USB-C port carries a line console. Each reply ends with a line
+starting `OK` or `ERR`. Paths start with the volume: `/sd/...` for the
+card, `/usb/...` for the drive.
 
     version              Duplicitous <version>
     whoami               M5Stack Tab5
     ls [dir]             D <name> | F <size> <name>, then OK; with no
                          dir, the mounted volumes (D sd, D usb)
     df [vol]             OK total=<bytes> free=<bytes>, of /sd unless /usb
-    put <size> <path>    READY <size>; then <size> raw bytes in 2048-byte
-                         chunks (the last shorter), waiting after each for
-                         ACK <received>/<size>; ends OK <size>
+    rb [-f] [-g] <dir>   receive files by YMODEM into dir (made if need be)
+    sha256 <path>        OK <hex>, the file as read back from the card
     rm <path>            file or empty directory
     mkdir <path>         with parents
     install <path>       PROGRESS <done>/<total> lines, then OK
     boot                 boot app2 once
     reboot
 
-The `put` framing is the one Launcher's `flash firmware` uses: one chunk
-in flight, so a slow driver cannot stall the stream. A file is written
-as `<path>.part` and renamed when complete; 5 s with no bytes gives ERR
-and removes it. The size comes first so a path may contain spaces.
+### Sending files
+
+`rb` takes a YMODEM batch, so anything that sends YMODEM works -- the web
+flasher, `sz --ymodem` (lrzsz) from a terminal on the port, Tera Term,
+ExtraPuTTY. Type `rb /sd/bins`, then start the send; the Tab5 asks every
+second for a minute. `-g` asks for YMODEM-G, which streams without
+waiting for an acknowledgement per block: much faster, and safe on the
+Tab5's native USB, which does not drop bytes; a sender that does not
+know G will not start, so leave it off for those.
+
+A file that is already there stops the batch unless `-f` is given. Each
+file is written as `<name>.part` and renamed when complete, so a
+transfer that fails leaves nothing under the name. A name may contain
+`/`, and lands in that subdirectory. YMODEM's CRC covers the cable, not
+the card: `sha256 <path>` reads the file back, for comparing with the
+sender's.
+
+While a transfer or an install runs, the Tab5 shows what is being
+written, where, and how far it has got, and the console prints no logs
+(a log line would be read as protocol). That screen is the console's
+only safeguard, on purpose: anyone with the cable can flash over
+Duplicitous itself, so a prompt would protect nothing.
 
 ## Building
 

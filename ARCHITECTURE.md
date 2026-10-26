@@ -35,3 +35,18 @@ the later one is what happened.
 - **0008** CLAUDE.md: numbered patches in series, like
   defeatist-music-player-for-m5tab5's; no binaries handed over; this
   file, with the series so far.
+- **0009** m5tab5: files to the card by YMODEM, and sha256. `put`
+  (Launcher's READY/ACK framing) is replaced by `rb [-f] [-g] <dir>`, a
+  YMODEM batch receiver written from Forsberg's reference (`ymodem.c`,
+  no IDF in it), so terminals' `sz`, Tera Term and the web flasher can
+  all send; `-g` is YMODEM-G. `sha256 <path>` reads a file back (vendored
+  SHA-256: Mbed TLS 4 dropped the legacy header). No overwriting without
+  `-f`; `.part` until complete. A transfer screen on the Tab5, and the
+  autoboot countdown stops when one starts. Considered and not taken:
+  an on-device approval prompt (the cable can reflash anyway), ZMODEM
+  (lrzsz is GPL; NuttX's port is ~3,700 lines), Kermit (no browser
+  library), USB mass storage (for later: it takes the console off the
+  port). `m5tab5/test/ymodem/run.sh` runs the receiver on the host
+  against lrzsz's sz: 15 checks pass -- YMODEM and -G, an empty file,
+  1 MB + 1, refusing and replacing, a transfer cut at 500 KB leaving
+  nothing behind.

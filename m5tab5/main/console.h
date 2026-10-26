@@ -3,9 +3,9 @@
  * to the card.
  *
  * One command per line. Replies end with a line starting "OK" or "ERR".
- * The framing for sending bytes is Launcher's "flash firmware" one
- * (bmorcelli/Launcher src/serial_console.cpp), so a host that speaks one
- * speaks the other:
+ * Files go to the card or the drive by YMODEM (ymodem.h), which any
+ * terminal with sz, Tera Term or ExtraPuTTY can send, and so can the web
+ * flasher:
  *
  *   version                 "Duplicitous <version>", then OK
  *   whoami                  "M5Stack Tab5", then OK
@@ -15,13 +15,14 @@
  *                           the mounted volumes: "D sd", "D usb".
  *   df [vol]                "OK total=<bytes> free=<bytes>", of /sd
  *                           unless /usb is named
- *   put <size> <path>       creates/replaces path (parent directories are
- *                           made). Replies "READY <size>"; then the host
- *                           sends <size> raw bytes in chunks of 2048
- *                           (the last one shorter), waiting after each for
- *                           "ACK <received>/<size>". Ends "OK <size>".
- *                           5 s with nothing arriving gives ERR, and the
- *                           partial file is removed.
+ *   rb [-f] [-g] <dir>      make dir, reply "READY ymodem[-g] <dir>, ...",
+ *                           then receive a YMODEM batch into it: -g asks
+ *                           for YMODEM-G (streaming), -f replaces files
+ *                           that are there (otherwise one that is cancels
+ *                           the batch). Ends "OK <files> files, <bytes>
+ *                           bytes" or "ERR <why> (<n> files completed)".
+ *                           Logs are off until it ends.
+ *   sha256 <path>           "OK <64 hex digits>", the file as read back
  *   rm <path>               delete a file or empty directory
  *   mkdir <path>            make a directory (and its parents)
  *   install <path>          write that .bin to app2, with

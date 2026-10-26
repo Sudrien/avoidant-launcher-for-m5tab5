@@ -23,13 +23,14 @@
 #include "freertos/task.h"
 
 #include "install.h"
+#include "sha256.h"
 #include "vol.h"
+#include "xfer.h"
+#include "ymodem.h"
 
 static const char *TAG = "console";
 
 #define LINE_MAX_LEN  1024
-#define PUT_CHUNK     2048
-#define PUT_TIMEOUT   pdMS_TO_TICKS(5000)
 
 const char *duplicitous_title(void)
 {
@@ -69,19 +70,6 @@ static void make_parents(const char *path)
     }
 }
 
-/* Exactly n bytes from the port, or fewer if PUT_TIMEOUT passes with
- * nothing arriving. */
-static size_t read_exact(uint8_t *buf, size_t n)
-{
-    size_t got = 0;
-    while (got < n) {
-        int r = usb_serial_jtag_read_bytes(buf + got, n - got, PUT_TIMEOUT);
-        if (r <= 0) break;
-        got += (size_t)r;
-    }
-    return got;
-}
-
 static void cmd_ls(const char *arg)
 {
     if (!*arg || !strcmp(arg, "/")) {
@@ -114,50 +102,113 @@ static void cmd_ls(const char *arg)
     vol_release(id);
 }
 
-static void put_into(const char *path, unsigned long size)
+/* ---- YMODEM, on the console's port ---------------------------------------- */
+
+static size_t yrd(void *ctx, uint8_t *buf, size_t n, int ms)
 {
-    char part[LINE_MAX_LEN + 8];
-    snprintf(part, sizeof part, "%s.part", path);
-
-    uint64_t total, free_bytes;
-    if (vol_space(path, &total, &free_bytes) != ESP_OK) { reply("ERR cannot read free space"); return; }
-    if (size > free_bytes) { reply("ERR %lu bytes do not fit, %llu free", size, (unsigned long long)free_bytes); return; }
-
-    make_parents(path);
-    FILE *f = fopen(part, "wb");
-    if (!f) { reply("ERR cannot create %s: %s", part, strerror(errno)); return; }
-
-    static uint8_t buf[PUT_CHUNK];
-    const char *fail = NULL;
-    unsigned long done = 0;
-    reply("READY %lu", size);
-    while (done < size) {
-        size_t want = size - done < PUT_CHUNK ? size - done : PUT_CHUNK;
-        size_t got = read_exact(buf, want);
-        if (got != want) { fail = "stream read timeout"; break; }
-        if (fwrite(buf, 1, got, f) != got) { fail = "write failed"; break; }
-        done += got;
-        /* per chunk the host sent -- it never has more than one in flight */
-        reply("ACK %lu/%lu", done, size);
-    }
-    if (fclose(f) != 0 && !fail) fail = "write failed";
-    if (fail) { unlink(part); reply("ERR %s", fail); return; }
-    unlink(path);                       /* FatFs rename will not replace */
-    if (rename(part, path) != 0) { unlink(part); reply("ERR rename: %s", strerror(errno)); return; }
-    reply("OK %lu", size);
+    (void)ctx;
+    int r = usb_serial_jtag_read_bytes(buf, n, pdMS_TO_TICKS(ms));
+    return r > 0 ? (size_t)r : 0;
 }
 
-static void cmd_put(const char *arg)
+static void yflush(void *ctx)
 {
-    char *end;
-    unsigned long size = strtoul(arg, &end, 0);
-    while (*end == ' ') end++;
-    char path[LINE_MAX_LEN];
-    if (end == arg || !*end) { reply("ERR usage: put <size> <path>"); return; }
-    if (!vol_path(end, path, sizeof path) || is_root(path)) { reply("ERR bad path: /sd/... or /usb/..."); return; }
+    uint8_t b[256];
+    while (yrd(ctx, b, sizeof b, 50)) { }
+}
+
+static void ywr(void *ctx, const uint8_t *buf, size_t n)
+{
+    (void)ctx;
+    usb_serial_jtag_write_bytes(buf, n, portMAX_DELAY);
+}
+
+static void yprog(void *ctx, const char *name, uint64_t done, uint64_t total)
+{
+    (void)ctx;
+    xfer_file(name, done, total);
+}
+
+/* rb [-f] [-g] <dir>: receive a YMODEM batch into dir. -g asks for
+ * YMODEM-G (streaming); -f replaces files that are there. */
+static void cmd_rb(char *arg)
+{
+    bool force = false, stream = false;
+    while (arg[0] == '-') {
+        for (char *p = arg + 1; *p && *p != ' '; p++) {
+            if (*p == 'f') force = true;
+            else if (*p == 'g') stream = true;
+            else { reply("ERR usage: rb [-f] [-g] <dir>"); return; }
+        }
+        while (*arg && *arg != ' ') arg++;
+        while (*arg == ' ') arg++;
+    }
+    char dir[LINE_MAX_LEN];
+    if (!*arg || !vol_path(arg, dir, sizeof dir)) { reply("ERR bad path: /sd/... or /usb/..."); return; }
     storage_id_t id;
-    if (vol_hold(path, &id)) put_into(path, size);
-    else reply("ERR %s is not mounted", storage_label(id));
+    if (!vol_hold(dir, &id)) {
+        vol_release(id);
+        reply("ERR %s is not mounted", storage_label(id));
+        return;
+    }
+    char probe[LINE_MAX_LEN + 4];
+    snprintf(probe, sizeof probe, "%s/x", dir);
+    make_parents(probe);
+    struct stat st;
+    if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode)) {
+        vol_release(id);
+        reply("ERR cannot make %s", dir);
+        return;
+    }
+
+    reply("READY %s %s, start the YMODEM send", stream ? "ymodem-g" : "ymodem", dir);
+    /* Nothing else may reach the port until the transfer is over: a log
+     * line is bytes the sender reads as protocol, and the 'C' in "CHG_EN"
+     * is a request to start. */
+    esp_log_level_t was = esp_log_level_get("*");
+    esp_log_level_set("*", ESP_LOG_NONE);
+    xfer_begin("Receiving", dir);
+    const ymodem_io_t io = { .read = yrd, .flush_in = yflush, .write = ywr, .progress = yprog };
+    ymodem_result_t res;
+    bool ok = ymodem_receive(&io, dir, force, stream, &res);
+    xfer_end();
+    vTaskDelay(pdMS_TO_TICKS(200));     /* let a sender finish and stop listening */
+    yflush(NULL);
+    esp_log_level_set("*", was);
+    vol_release(id);
+    printf("\r\n");
+    if (ok) reply("OK %d files, %llu bytes", res.files, (unsigned long long)res.bytes);
+    else reply("ERR %s (%d files completed)", res.msg, res.files);
+}
+
+/* sha256 <path>: "OK <hex>", read back from the card or the drive. */
+static void cmd_sha256(const char *arg)
+{
+    char path[LINE_MAX_LEN];
+    if (!vol_path(arg, path, sizeof path)) { reply("ERR bad path: /sd/... or /usb/..."); return; }
+    storage_id_t id;
+    if (!vol_hold(path, &id)) { vol_release(id); reply("ERR %s is not mounted", storage_label(id)); return; }
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        reply("ERR cannot open %s", path);
+    } else {
+        static uint8_t buf[16 * 1024];
+        sha256_t h;
+        sha256_init(&h);
+        size_t n;
+        while ((n = fread(buf, 1, sizeof buf, f)) > 0) sha256_update(&h, buf, n);
+        bool err = ferror(f);
+        fclose(f);
+        if (err) {
+            reply("ERR read failed");
+        } else {
+            uint8_t d[32];
+            char hex[65];
+            sha256_final(&h, d);
+            for (int i = 0; i < 32; i++) sprintf(hex + 2 * i, "%02x", d[i]);
+            reply("OK %s", hex);
+        }
+    }
     vol_release(id);
 }
 
@@ -186,7 +237,7 @@ static void cmd_rm_mkdir(bool mk, const char *arg)
 
 static void progress(size_t done, size_t total, void *ctx)
 {
-    (void)ctx;
+    xfer_file(ctx, done, total);
     static size_t last;
     if (done == 0 || done == total || done - last >= 256 * 1024) {
         reply("PROGRESS %u/%u", (unsigned)done, (unsigned)total);
@@ -209,8 +260,8 @@ static void handle(char *line)
     }
     if (!strcasecmp(cmd, "whoami")) { reply("M5Stack Tab5"); reply("OK"); return; }
     if (!strcasecmp(cmd, "help")) {
-        reply("version | whoami | help | ls [dir] | df [vol] | put <size> <path> | rm <path>");
-        reply("mkdir <path> | install <path> | boot | reboot");
+        reply("version | whoami | help | ls [dir] | df [vol] | rb [-f] [-g] <dir> | sha256 <path>");
+        reply("rm <path> | mkdir <path> | install <path> | boot | reboot");
         reply("OK");
         return;
     }
@@ -235,15 +286,23 @@ static void handle(char *line)
         else if (vol_space(path, &total, &free_bytes) == ESP_OK)
             reply("OK total=%llu free=%llu", (unsigned long long)total, (unsigned long long)free_bytes);
         else reply("ERR %s is not mounted", storage_label(storage_of_path(path)));
-    } else if (!strcasecmp(cmd, "put")) {
-        cmd_put(arg);
+    } else if (!strcasecmp(cmd, "rb")) {
+        cmd_rb(arg);
+    } else if (!strcasecmp(cmd, "sha256")) {
+        cmd_sha256(arg);
     } else if (!strcasecmp(cmd, "rm") || !strcasecmp(cmd, "mkdir")) {
         cmd_rm_mkdir(!strcasecmp(cmd, "mkdir"), arg);
     } else if (!strcasecmp(cmd, "install")) {
         char path[LINE_MAX_LEN], err[128];
         if (!vol_path(arg, path, sizeof path)) reply("ERR bad path: /sd/... or /usb/...");
-        else if (install_from_file(path, progress, NULL, err, sizeof err) == ESP_OK) reply("OK installed");
-        else reply("ERR %s", err);
+        else {
+            const char *base = strrchr(path, '/');
+            xfer_begin("Installing", path);
+            bool ok = install_from_file(path, progress, (void *)(base ? base + 1 : path), err, sizeof err) == ESP_OK;
+            xfer_end();
+            if (ok) reply("OK installed");
+            else reply("ERR %s", err);
+        }
     } else {
         reply("ERR unknown command, type 'help' for command list");
     }
