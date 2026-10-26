@@ -32,8 +32,7 @@
  *   reboot                  restart the launcher
  *
  * Paths start with the volume: /sd/... for the card, /usb/... for a USB
- * drive (the leading slash may be left off); ".." is refused. The size
- * comes before the path so the path may contain spaces.
+ * drive (the leading slash may be left off); ".." is refused.
  *
  * SPDX-License-Identifier: MIT
  */

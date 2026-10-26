@@ -55,6 +55,24 @@ on the next one.</p>
 <pre id="launcherinfo" class="muted">Not checked yet.</pre>
 </section>
 
+<h2>4. Send to the Tab5's card or USB drive</h2>
+<p>With <a href="https://github.com/Sudrien/duplicitous-for-m5tab5/tree/main/m5tab5">Duplicitous</a>
+running on the Tab5, this puts files on its microSD card or USB drive over the
+same USB-C port -- the firmware from step 1 instead of flashing it, or files
+from this computer -- then reads each one back to check it, and can install a
+<code>.bin</code> and boot it. Duplicitous shows what is being written while it
+happens.</p>
+<label><input type="radio" name="sendsrc" value="fw" checked> The firmware chosen in step 1</label>
+<label><input type="radio" name="sendsrc" value="files"> Files from this computer:
+  <input type="file" id="sendfiles" multiple></label>
+<label>To the <select id="sendvol"><option value="sd">microSD card</option><option value="usb">USB drive</option></select>,
+  in the folder <input id="senddir" value="bins" size="24"></label>
+<label><input type="checkbox" id="sendforce"> Replace files that are already there</label>
+<label><input type="checkbox" id="sendinstall"> Then install it to app2 and boot it (one <code>.bin</code>)</label>
+<button id="send" disabled>Send</button>
+<progress id="sendprogress" value="0" max="1" hidden></progress>
+<pre id="sendinfo" class="muted">Nothing sent yet.</pre>
+
 <details>
 <summary>Port and chip tests</summary>
 <label><input type="checkbox" id="anyport"> Show every serial port, not only Espressif (USB vendor 0x303A) ones</label>
@@ -94,6 +112,8 @@ let go of BOOT, and try once more.</p>
 }
 </script>
 <script type="module">
+import { ymodemSend, YmodemError } from './ymodem.js';
+
 // Espressif's USB vendor ID. The P4's built-in USB-Serial/JTAG is 0x303A:0x1001;
 // an app using TinyUSB CDC shows another product ID under the same vendor.
 const ESPRESSIF_VID = 0x303A;
@@ -122,6 +142,7 @@ if (!('serial' in navigator)) {
 } else {
   say('support', 'Web Serial is available in this browser. In Firefox, an explanation appears before the port prompt the first time.', 'ok');
   $('pick').disabled = false;
+  $('send').disabled = false;
   navigator.serial.addEventListener('disconnect', e => {
     lastDisconnect.set(e.target, Date.now());
     portLog('disconnect: ' + portName(e.target));
@@ -164,6 +185,7 @@ function buttons() {
   $('flash').disabled = !serial || listening || busy || !chosenLabel();
   $('launchertest').disabled = !serial || listening || busy;
   $('launcherreboot').disabled = !serial || listening || busy;
+  $('send').disabled = !serial || listening || busy;
   // step 3 is for Launcher: shown once it is flashed, or while it is chosen
   $('launcherstep').hidden = !(launcherFlashed || isLauncher(chosenLabel()));
 }
@@ -595,7 +617,9 @@ async function launcherPort() {
 // to send a command and wait for a matching reply. lost is set if the
 // port goes away (the Tab5 reset).
 async function consoleSession(p) {
-  const s = { lines: [], lost: null };
+  // raw: while set, an array that takes every byte as it comes, for a
+  // binary protocol (YMODEM), instead of lines.
+  const s = { lines: [], lost: null, raw: null, rawWake: null };
   const enc = new TextEncoder();
   await p.open({ baudRate: 115200 });  // the USB-Serial/JTAG ignores the rate
   const rd = p.readable.getReader(), wr = p.writable.getWriter();
@@ -606,6 +630,11 @@ async function consoleSession(p) {
       for (;;) {
         const { value, done } = await rd.read();
         if (done) break;
+        if (s.raw) {
+          for (const b of value) s.raw.push(b);
+          if (s.rawWake) { s.rawWake(); s.rawWake = null; }
+          continue;
+        }
         const text = dec.decode(value, { stream: true });
         outWrite(text);
         const pieces = (part + text).split('\n');
@@ -615,6 +644,36 @@ async function consoleSession(p) {
     } catch (e) { s.lost = e; }
   })();
   s.send = cmd => wr.write(enc.encode(cmd + '\n'));
+  // Raw bytes: ymodem.js's io, and a line read out of the raw stream.
+  s.io = {
+    async read(ms) {
+      const end = Date.now() + ms;
+      while (!s.raw.length) {
+        const left = end - Date.now();
+        if (left <= 0 || s.lost) return -1;
+        await new Promise(r => { s.rawWake = r; setTimeout(r, Math.min(left, 200)); });
+      }
+      return s.raw.shift();
+    },
+    peek: () => (s.raw.length ? s.raw[0] : -1),
+    write: u8 => wr.write(u8),
+    flushIn: () => { s.raw.length = 0; },
+  };
+  s.rawLine = async ms => {
+    const bytes = [];
+    for (const end = Date.now() + ms; Date.now() < end; ) {
+      const c = await s.io.read(end - Date.now());
+      if (c < 0) break;
+      if (c === 10) {
+        // a cancel leaves CAN and backspaces ahead of the reason; drop them
+        const l = new TextDecoder().decode(Uint8Array.from(bytes)).replace(/[\x00-\x1f]/g, '').trim();
+        outWrite(l + '\n');
+        return l;
+      }
+      bytes.push(c);
+    }
+    return null;
+  };
   // Send a command; the first new line matching re, or null after ms.
   s.ask = async (cmd, re, ms) => {
     const from = s.lines.length;
@@ -698,6 +757,142 @@ async function launcherCheck({ reboot = false }) {
   busy = false;
   buttons();
 }
+
+// ---- step 4: to the card or drive, through Duplicitous ---------------------
+
+// Duplicitous (m5tab5/ in this repository) answers "version" with
+// "Duplicitous <version>", and takes files by YMODEM after
+// "rb [-f] [-g] <dir>" (m5tab5/main/console.h). This asks for YMODEM-G:
+// the Tab5's USB does not drop bytes, so nothing needs acknowledging.
+
+// What to send: [{ name, data }], from step 1's choice or the file picker.
+async function filesToSend() {
+  if (document.querySelector('input[name=sendsrc]:checked').value === 'fw') {
+    const r = document.querySelector('input[name=fw]:checked');
+    if (!r) throw new Error('Choose a firmware in step 1 first.');
+    const img = await chosenImage();
+    const name = r.value === 'file' ? $('fwfile').files[0].name : published[+r.value].file;
+    return [{ name, data: img.data }];
+  }
+  const list = [...$('sendfiles').files];
+  if (!list.length) throw new Error('Choose the files to send.');
+  return Promise.all(list.map(async f => ({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) })));
+}
+
+// The folder as typed, made into a path on the volume; null if it tries
+// to leave it.
+function sendDir() {
+  const parts = $('senddir').value.split('/').map(x => x.trim()).filter(Boolean);
+  if (parts.some(x => x === '..' || x === '.')) return null;
+  return '/' + $('sendvol').value + (parts.length ? '/' + parts.join('/') : '');
+}
+
+const kb = n => (n / 1024).toFixed(0) + ' KB';
+
+$('send').onclick = async () => {
+  busy = true; buttons();
+  // the prompt first, while the click still counts
+  port = await launcherPort();
+  if (!port) { say('sendinfo', 'No port chosen.', 'bad'); busy = false; buttons(); return; }
+  const bar = $('sendprogress');
+  const dir = sendDir();
+  const report = [];
+  let s = null, opened = Date.now(), booted = false;
+  outHeading('Sending to the Tab5');
+  try {
+    if (!dir) throw new Error('That folder leaves the card. Use a folder name such as "bins".');
+    say('sendinfo', 'Getting the files...', 'muted');
+    const files = await filesToSend();
+    const install = $('sendinstall').checked;
+    if (install && (files.length !== 1 || !/\.bin$/i.test(files[0].name)))
+      throw new Error('"Install and boot" takes exactly one .bin.');
+    const total = files.reduce((n, f) => n + f.data.length, 0);
+
+    say('sendinfo', 'Opening the port...', 'muted');
+    opened = Date.now();
+    s = await consoleSession(port);
+    let version = null;
+    for (const end = Date.now() + 20000; !version && Date.now() < end && !s.lost; ) {
+      say('sendinfo', 'Asking for its version...', 'muted');
+      version = await s.ask('version', /^(Duplicitous|Launcher)\s+\S/, 1500);
+    }
+    if (s.lost) throw s.lost;
+    if (!version) throw new Error('No answer to "version" in 20 seconds. Is Duplicitous on the Tab5\'s screen? '
+      + 'An app it started has a console of its own, or none; reset the Tab5 and touch the screen to stay in Duplicitous.');
+    if (!/^Duplicitous/.test(version))
+      throw new Error('This is ' + version + ', not Duplicitous: it cannot take files this way. Flash Duplicitous in steps 1 and 2.');
+    report.push(version);
+
+    // rb, then YMODEM-G on the raw bytes
+    s.raw = [];
+    await s.send('rb -g' + ($('sendforce').checked ? 'f' : '') + ' ' + dir);
+    let ready = null;
+    for (const end = Date.now() + 10000; !ready && Date.now() < end; ) {
+      const l = await s.rawLine(end - Date.now());
+      if (l === null) break;
+      if (/^(READY|ERR)\b/.test(l)) ready = l;
+    }
+    if (!ready) throw new Error('No answer to "rb".');
+    if (/^ERR/.test(ready)) throw new Error('The Tab5 said: ' + ready);
+
+    say('sendinfo', 'Sending ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ', ' + kb(total) + ', to ' + dir + '...', 'muted');
+    bar.hidden = false; bar.value = 0;
+    const before = files.map((f, i) => files.slice(0, i).reduce((n, g) => n + g.data.length, 0));
+    const t0 = Date.now();
+    let failed = null;
+    try {
+      await ymodemSend(s.io, files, (i, sent) => { bar.value = (before[i] + sent) / (total || 1); });
+    } catch (e) { failed = e; }
+    // the Tab5's verdict, a line after the protocol ends
+    let verdict = null;
+    for (const end = Date.now() + 10000; !verdict && Date.now() < end; ) {
+      const l = await s.rawLine(end - Date.now());
+      if (l === null) break;
+      if (/^(OK|ERR)\b/.test(l)) verdict = l;
+    }
+    s.raw = null;
+    if (failed) throw new Error('Sending stopped: ' + failed.message + (verdict ? '\nThe Tab5 said: ' + verdict : '')
+      + (verdict && / exists /.test(verdict) ? '\nTick "Replace files that are already there" to send it anyway.' : ''));
+    if (!verdict || !/^OK/.test(verdict)) throw new Error('The Tab5 did not confirm the files' + (verdict ? ': ' + verdict : '.'));
+    const secs = (Date.now() - t0) / 1000;
+    report.push('Sent ' + kb(total) + ' in ' + secs.toFixed(1) + ' s (' + kb(total / secs) + '/s): ' + verdict);
+
+    // read each back: YMODEM's CRC covered the cable, this covers the card
+    say('sendinfo', report.join('\n') + '\nReading them back...', 'muted');
+    let allGood = true;
+    for (const f of files) {
+      const path = dir + '/' + f.name;
+      const want = await sha256(f.data);
+      const got = await s.ask('sha256 ' + path, /^(OK|ERR)\b/, 60000);
+      const good = got === 'OK ' + want;
+      allGood = allGood && good;
+      report.push((good ? 'checked  ' : 'DIFFERS  ') + path + (good ? '' : '  (' + (got || 'no answer') + ')'));
+    }
+    if (!allGood) throw new Error('A file on the Tab5 is not what was sent.');
+
+    if (install) {
+      const path = dir + '/' + files[0].name;
+      say('sendinfo', report.join('\n') + '\nInstalling ' + path + ' to app2...', 'muted');
+      const r = await s.ask('install ' + path, /^(OK installed|ERR)\b/, 180000);
+      if (!r || !/^OK/.test(r)) throw new Error('Not installed: ' + (r || 'no answer in 3 minutes'));
+      report.push('Installed to app2.');
+      await s.send('boot');
+      booted = true;
+      report.push('Booting it; a reset brings Duplicitous back.');
+    }
+    say('sendinfo', report.join('\n'), 'ok');
+  } catch (e) {
+    say('sendinfo', (report.length ? report.join('\n') + '\n' : '') + (e.name && e.name !== 'Error' && !(e instanceof YmodemError) ? e.name + ': ' : '') + e.message
+      + (s && s.lost && !booted ? '\nThe port went away -- the Tab5 may have reset. Try again.' : ''), 'bad');
+  }
+  bar.hidden = true;
+  if (s) { s.raw = null; await sleep(booted ? 1500 : 0); }
+  const gone = s && (s.lost || booted);
+  if (s) await s.close();
+  if (gone) await afterReset(port, opened, 'sendinfo');
+  busy = false;
+  buttons();
+};
 
 $('launchertest').onclick = () => launcherCheck({});
 $('launcherreboot').onclick = () => launcherCheck({ reboot: true });

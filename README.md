@@ -28,6 +28,11 @@ on the list too, pinned to that release. Once it is flashed, a third
 step checks that Launcher answers on its serial console, asking it
 `version`, `whoami` and `partitions`.
 
+With Duplicitous on the Tab5, step 4 sends files to its microSD card or
+USB drive instead -- the firmware chosen in step 1, or files from your
+computer -- by YMODEM over the same port, reads each one back to check
+its SHA-256, and can install a `.bin` to `app2` and boot it.
+
 The port and chip tests (reset into the ROM bootloader, read the chip,
 reset back) are still on the page, folded under "Port and chip tests".
 

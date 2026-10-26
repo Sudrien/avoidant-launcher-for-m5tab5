@@ -50,3 +50,18 @@ the later one is what happened.
   against lrzsz's sz: 15 checks pass -- YMODEM and -G, an empty file,
   1 MB + 1, refusing and replacing, a transfer cut at 500 KB leaving
   nothing behind.
+- **0010** web: step 4, files to the Tab5's card or drive. The page asks
+  `version` (Duplicitous only; Launcher is told apart), sends
+  `rb -g[f] <dir>`, then YMODEM-G from `web/ymodem.js` on the raw bytes
+  of the same session, reads the Tab5's verdict, checks each file with
+  `sha256`, and with the box ticked runs `install` and `boot`. Source:
+  the firmware chosen in step 1 (a merged image; `install` takes those)
+  or files from the computer. `m5tab5/test/ymodem/send.mjs` runs
+  ymodem.js under Node against the receiver on the host: 20 checks pass,
+  C and G -- an empty file, 100 bytes, 1 MB + 1, a subdirectory,
+  refusing and replacing, refusing `../`. The page itself was run in
+  headless Chromium against a fake Web Serial port whose console handed
+  `rb` to the same receiver: two files sent and read back, the refusal
+  reported with the Tab5's reason, `-f` replacing, `../` refused. That
+  run found Send never enabled at load, fixed here. Not yet run against
+  a Tab5.
