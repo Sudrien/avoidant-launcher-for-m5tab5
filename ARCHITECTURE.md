@@ -162,3 +162,17 @@ the later one is what happened.
   the fake port: 8 of 8 alone; with a fake second reader taking every
   third 16-byte chunk, caught in the first round, by the button and by
   Send.
+- **0019** web: a shared port caught at the first question. *0018 on a
+  Tab5* (00317a7), with `idf.py monitor` also open: the two programs
+  split every reply a few bytes at a time -- the page read
+  `Dulicit0317a7`, `uplicitous 00317a7`, `DOK`; the monitor read the
+  rest -- so `version` never came back whole, the page asked for 20 s,
+  blamed Duplicitous, and never reached the echo test. Every `version`
+  answer from Duplicitous ends with a line `OK`; an `OK` with no whole
+  version line before it is bytes gone missing. One helper,
+  `askVersion()`, now serves Send, Check storage and Test the port, and
+  two such rounds stop it with the shared-port message. In headless
+  Chromium with a fake reader taking single bytes at random: caught in
+  about 6 s, by the button and by Send. The same log shows 0015 and 0017
+  working: `phase: autoboot: not back by reset, to the menu`, and
+  `EVENT sd mounted` at boot.

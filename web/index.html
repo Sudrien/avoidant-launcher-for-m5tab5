@@ -865,14 +865,7 @@ $('send').onclick = async () => {
     say('sendinfo', 'Opening the port...', 'muted');
     opened = Date.now();
     s = await consoleSession(port);
-    let version = null;
-    for (const end = Date.now() + 20000; !version && Date.now() < end && !s.lost; ) {
-      say('sendinfo', 'Asking for its version...', 'muted');
-      version = await s.ask('version', /^(Duplicitous|Launcher)\s+\S/, 1500);
-    }
-    if (s.lost) throw s.lost;
-    if (!version) throw new Error('No answer to "version" in 20 seconds. Is Duplicitous on the Tab5\'s screen? '
-      + 'An app it started has a console of its own, or none; reset the Tab5 and touch the screen to stay in Duplicitous.');
+    const version = await askVersion(s, 'sendinfo');
     if (!/^Duplicitous/.test(version))
       throw new Error('This is ' + version + ', not Duplicitous: it cannot take files this way. Flash Duplicitous in steps 1 and 2.');
     report.push(version);
@@ -980,6 +973,27 @@ async function portIsOurs(s, rounds = 8) {
 const PORT_SHARED = 'Something else on this computer seems to have the Tab5\'s port open -- a terminal, '
   + 'idf.py monitor, another browser tab -- and is taking part of what the Tab5 sends. Close it, then try again.';
 
+// Ask "version" until Duplicitous (or Launcher) answers, for up to 20 s.
+// Duplicitous ends its answer with a line "OK"; an OK that arrives with
+// no whole version line before it means bytes went missing between them
+// -- another program reading the port, taking them a few at a time, as
+// idf.py monitor does ("Dulicit0317a7", "uplicitous 00317a7"). Two of
+// those and this stops and says so, rather than asking for 20 s and then
+// blaming the Tab5.
+async function askVersion(s, statusId) {
+  let damaged = 0;
+  for (const end = Date.now() + 20000; Date.now() < end && !s.lost; ) {
+    if (statusId) say(statusId, 'Asking for its version...', 'muted');
+    const from = s.lines.length;
+    const v = await s.ask('version', /^(Duplicitous|Launcher)\s+\S/, 1500);
+    if (v) return v;
+    if (s.lines.slice(from).includes('OK') && ++damaged >= 2) throw new Error(PORT_SHARED);
+  }
+  if (s.lost) throw s.lost;
+  throw new Error('No answer to "version" in 20 seconds. Is Duplicitous on the Tab5\'s screen? '
+    + 'An app it started has a console of its own, or none; reset the Tab5 and touch the screen to stay in Duplicitous.');
+}
+
 // "Test the port", by itself.
 $('porttest').onclick = async () => {
   busy = true; buttons();
@@ -990,11 +1004,7 @@ $('porttest').onclick = async () => {
   try {
     say('vols', 'Testing the port...', 'muted');
     s = await consoleSession(port);
-    let version = null;
-    for (const end = Date.now() + 20000; !version && Date.now() < end && !s.lost; )
-      version = await s.ask('version', /^(Duplicitous|Launcher)\s+\S/, 1500);
-    if (s.lost) throw s.lost;
-    if (!version) throw new Error('No answer from the Tab5 at all. Is Duplicitous on its screen? If it is, ' + PORT_SHARED);
+    const version = await askVersion(s);
     if (!/^Duplicitous/.test(version)) throw new Error(version + ' cannot take this test; Duplicitous can.');
     const bad = await portIsOurs(s);
     if (bad) throw new Error(PORT_SHARED + ' (' + bad + ')');
@@ -1019,11 +1029,7 @@ $('volcheck').onclick = async () => {
   try {
     say('vols', 'Asking...', 'muted');
     s = await consoleSession(port);
-    let version = null;
-    for (const end = Date.now() + 20000; !version && Date.now() < end && !s.lost; )
-      version = await s.ask('version', /^(Duplicitous|Launcher)\s+\S/, 1500);
-    if (s.lost) throw s.lost;
-    if (!version) throw new Error('No answer from the Tab5. Is Duplicitous on its screen?');
+    const version = await askVersion(s);
     if (!/^Duplicitous/.test(version)) throw new Error(version + ' does not report its storage; Duplicitous does.');
     if (!await s.ask('vols', /^(OK|ERR)\b/, 5000)) throw new Error('No answer to "vols".');
   } catch (e) {
