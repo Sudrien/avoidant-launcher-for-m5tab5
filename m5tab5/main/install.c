@@ -61,6 +61,65 @@ static const esp_partition_t *app2(void)
                                     ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
 }
 
+/*
+ * Where the app is in an open file: an app image (0xE9 at 0), or a
+ * merged image whose table at 0x8000 names its first app; then that the
+ * image there is for the ESP32-P4 and fits app2. Reads a few dozen bytes,
+ * so the menu can ask it of every .bin it lists. False, with why, for
+ * anything else -- a .bin of settings, a firmware for another chip.
+ */
+static bool locate(FILE *f, size_t fsize, size_t *start_out, size_t *len_out,
+                   char *why, size_t why_len)
+{
+#define NO(...) do { snprintf(why, why_len, __VA_ARGS__); return false; } while (0)
+    const esp_partition_t *dest = app2();
+    if (!dest) NO("no app2 partition in this table");
+    size_t start = 0, len = fsize;
+    uint8_t first;
+    if (fseek(f, 0, SEEK_SET) != 0 || fread(&first, 1, 1, f) != 1) NO("empty file");
+    if (first != ESP_IMAGE_HEADER_MAGIC) {
+        if (fsize <= PT_OFFSET + sizeof(pt_entry_t)) NO("not an ESP image");
+        if (fseek(f, PT_OFFSET, SEEK_SET) != 0) NO("not an ESP image");
+        bool found = false;
+        for (int i = 0; i < PT_MAX; i++) {
+            pt_entry_t e;
+            if (fread(&e, sizeof e, 1, f) != 1 || e.magic != PT_MAGIC) break;
+            if (e.type == 0 /* app */) {
+                start = e.offset;
+                len = e.size;
+                found = true;
+                break;
+            }
+        }
+        if (!found) NO("not an ESP image");
+        if (start >= fsize) NO("merged image ends before its app (0x%x)", (unsigned)start);
+        if (len > fsize - start) len = fsize - start;
+    }
+    esp_image_header_t hdr;
+    if (fseek(f, start, SEEK_SET) != 0 || fread(&hdr, sizeof hdr, 1, f) != 1) NO("not an ESP image");
+    if (hdr.magic != ESP_IMAGE_HEADER_MAGIC) NO("no app image at 0x%x", (unsigned)start);
+    if (hdr.chip_id != ESP_CHIP_ID_ESP32P4)
+        NO("built for chip id %u, not the ESP32-P4 (%u)", hdr.chip_id, ESP_CHIP_ID_ESP32P4);
+    if (len > dest->size)
+        NO("%u KB does not fit app2 (%u KB)", (unsigned)(len / 1024), (unsigned)(dest->size / 1024));
+    *start_out = start;
+    *len_out = len;
+    return true;
+#undef NO
+}
+
+bool install_probe(const char *path, char *why, size_t why_len)
+{
+    struct stat st;
+    if (stat(path, &st) != 0) { snprintf(why, why_len, "cannot read it"); return false; }
+    FILE *f = fopen(path, "rb");
+    if (!f) { snprintf(why, why_len, "cannot open it"); return false; }
+    size_t start, len;
+    bool ok = locate(f, (size_t)st.st_size, &start, &len, why, why_len);
+    fclose(f);
+    return ok;
+}
+
 #define FAIL(...) do { snprintf(err, err_len, __VA_ARGS__); ret = ESP_FAIL; goto out; } while (0)
 
 esp_err_t install_from_file(const char *path, install_progress_fn cb, void *ctx,
@@ -83,39 +142,9 @@ esp_err_t install_from_file(const char *path, install_progress_fn cb, void *ctx,
     if (stat(path, &st) != 0) FAIL("cannot read %s", path);
     f = fopen(path, "rb");
     if (!f) FAIL("cannot open %s", path);
-    const size_t fsize = (size_t)st.st_size;
 
-    /* Where the app starts in the file, and how long it can be. */
-    size_t start = 0, len = fsize;
-    uint8_t first;
-    if (fread(&first, 1, 1, f) != 1) FAIL("empty file");
-    if (first != ESP_IMAGE_HEADER_MAGIC) {
-        if (fsize <= PT_OFFSET + sizeof(pt_entry_t)) FAIL("not an ESP image");
-        if (fseek(f, PT_OFFSET, SEEK_SET) != 0) FAIL("seek failed");
-        bool found = false;
-        for (int i = 0; i < PT_MAX; i++) {
-            pt_entry_t e;
-            if (fread(&e, sizeof e, 1, f) != 1 || e.magic != PT_MAGIC) break;
-            if (e.type == 0 /* app */) {
-                start = e.offset;
-                len = e.size;
-                found = true;
-                break;
-            }
-        }
-        if (!found) FAIL("not an app, and no partition table at 0x8000");
-        if (start >= fsize) FAIL("merged image ends before its app (0x%x)", (unsigned)start);
-        if (len > fsize - start) len = fsize - start;
-    }
-
-    esp_image_header_t hdr;
-    if (fseek(f, start, SEEK_SET) != 0 || fread(&hdr, sizeof hdr, 1, f) != 1)
-        FAIL("short file");
-    if (hdr.magic != ESP_IMAGE_HEADER_MAGIC) FAIL("no app image at 0x%x", (unsigned)start);
-    if (hdr.chip_id != ESP_CHIP_ID_ESP32P4)
-        FAIL("built for chip id %u, not the ESP32-P4 (%u)", hdr.chip_id, ESP_CHIP_ID_ESP32P4);
-    if (len > dest->size)
-        FAIL("%u KB does not fit app2 (%u KB)", (unsigned)(len / 1024), (unsigned)(dest->size / 1024));
+    size_t start, len;
+    if (!locate(f, (size_t)st.st_size, &start, &len, err, err_len)) { ret = ESP_FAIL; goto out; }
 
     buf = heap_caps_malloc(CHUNK, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!buf) buf = malloc(CHUNK);

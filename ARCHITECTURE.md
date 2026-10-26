@@ -125,3 +125,13 @@ the later one is what happened.
   to bmorcelli/Launcher. A side effect, on purpose: after exiting to
   Duplicitous, power-cycling stays in Duplicitous until something is
   booted again.
+- **0016** m5tab5: .bin files that are not apps are not listed. A
+  project that saved its settings as `.bin` put files on the card that
+  the menu offered to install, refused only after "Install to app2?"
+  with "not an ESP image". The header checks (app image or merged image,
+  ESP32-P4, fits app2) are now `locate()` in install.c, shared by
+  `install_from_file()` and a new `install_probe()` that reads a few
+  dozen bytes; the menu's scan calls it for each `.bin` and leaves out
+  what fails, saying "N .bin files here are not an ESP32-P4 app" on the
+  last page and logging each with its reason (`phase: not listed: ...`).
+  The console's `install` still refuses them as before.

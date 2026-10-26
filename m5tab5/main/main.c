@@ -152,6 +152,7 @@ typedef struct {
 
 static entry_t *s_ents;
 static int s_n;
+static int s_hidden;     /* .bin files here that are not apps */
 /* "" is the list of volumes; otherwise a directory on one. */
 static char s_dir[512] = "";
 
@@ -200,6 +201,7 @@ static bool add(const char *name, bool dir, long size)
 static void scan(void)
 {
     free_list();
+    s_hidden = 0;
     if (!s_dir[0]) {
         /* the volumes, in storage_id_t order: the card, then the drive */
         for (int i = 0; i < STORAGE_COUNT; i++)
@@ -229,6 +231,15 @@ static void scan(void)
                 struct stat st;
                 snprintf(full, sizeof full, "%s/%s", s_dir, e->d_name);
                 if (stat(full, &st) == 0) size = (long)st.st_size;
+                /* only what install would take: a project's settings
+                 * saved as .bin, or another chip's firmware, is left out
+                 * here rather than refused after "Install?" */
+                char why[96];
+                if (!install_probe(full, why, sizeof why)) {
+                    PHASE("not listed: %s (%s)", e->d_name, why);
+                    s_hidden++;
+                    continue;
+                }
             }
             if (!add(e->d_name, dir, size)) break;
         }
@@ -431,8 +442,17 @@ static void menu(void)
         }
         if (s_n == 0)
             text(PAD, LIST_Y + (have_app ? ROW_H : 0) + 30,
-                 s_dir[0] ? "No folders or .bin files here." : "No microSD card or USB drive.",
+                 s_dir[0] ? "No folders or apps here." : "No microSD card or USB drive.",
                  W - 2 * PAD, C_DIM);
+        if (s_hidden && page == pages - 1) {
+            char note[64];
+            snprintf(note, sizeof note, "%d .bin file%s here %s not an ESP32-P4 app", s_hidden,
+                     s_hidden == 1 ? "" : "s", s_hidden == 1 ? "is" : "are");
+            int rows = s_n + extra - page * ROWS;     /* rows on this, the last, page */
+            int ny = LIST_Y + rows * ROW_H + 30;
+            if (s_n == 0) ny += TEXT_H + 30;            /* under "No folders or apps here." */
+            if (ny + TEXT_H < H - FOOT_H) text(PAD, ny, note, W - 2 * PAD, C_DIM);
+        }
 
         /* Up, Prev, Next, Rescan */
         const int bw = (W - 5 * PAD) / 4, by = H - FOOT_H + 20, bh = FOOT_H - 40;

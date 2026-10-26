@@ -31,6 +31,11 @@ typedef void (*install_progress_fn)(size_t done, size_t total, void *ctx);
 esp_err_t install_from_file(const char *path, install_progress_fn cb, void *ctx,
                             char *err, size_t err_len);
 
+/* Whether path is an app install_from_file() would take -- the same
+ * checks, on its header alone, without writing anything. False with a
+ * reason otherwise. The caller holds the volume. */
+bool install_probe(const char *path, char *why, size_t why_len);
+
 /* app2 holds a valid image. name (may be NULL) gets the file it came
  * from, or the image's own project name if that was not recorded. */
 bool install_present(char *name, size_t name_len);
