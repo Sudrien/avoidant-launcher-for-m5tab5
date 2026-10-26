@@ -10,6 +10,8 @@
  *   version                 "Duplicitous <version>", then OK
  *   whoami                  "M5Stack Tab5", then OK
  *   help                    the command list, then OK
+ *   vols                    "VOL sd mounted total=<bytes> free=<bytes>" or
+ *                           "VOL usb absent", one line each, then OK
  *   ls [dir]                one line per entry -- "D <name>" or
  *                           "F <size> <name>" -- then OK. With no dir,
  *                           the mounted volumes: "D sd", "D usb".
@@ -30,6 +32,11 @@
  *                           verified
  *   boot                    boot app2 (once; a reset comes back here)
  *   reboot                  restart the launcher
+ *
+ * Unasked, between commands: "EVENT sd mounted", "EVENT usb removed" and
+ * so on, when a card or a drive comes or goes (the first look, about a
+ * quarter of a second after the console starts, reports what is already
+ * mounted). Never inside a reply or a transfer.
  *
  * Paths start with the volume: /sd/... for the card, /usb/... for a USB
  * drive (the leading slash may be left off); ".." is refused.

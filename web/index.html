@@ -65,6 +65,8 @@ happens.</p>
 <label><input type="radio" name="sendsrc" value="fw" checked> The firmware chosen in step 1</label>
 <label><input type="radio" name="sendsrc" value="files"> Files from this computer:
   <input type="file" id="sendfiles" multiple></label>
+<p>On the Tab5: <span id="vols" class="muted">not checked yet</span>
+  <button id="volcheck" disabled>Check storage</button></p>
 <label>To the <select id="sendvol"><option value="sd">microSD card</option><option value="usb">USB drive</option></select>,
   in the folder <input id="senddir" value="bins" size="24"></label>
 <label><input type="checkbox" id="sendforce"> Replace files that are already there</label>
@@ -143,6 +145,7 @@ if (!('serial' in navigator)) {
   say('support', 'Web Serial is available in this browser. In Firefox, an explanation appears before the port prompt the first time.', 'ok');
   $('pick').disabled = false;
   $('send').disabled = false;
+  $('volcheck').disabled = false;
   navigator.serial.addEventListener('disconnect', e => {
     lastDisconnect.set(e.target, Date.now());
     portLog('disconnect: ' + portName(e.target));
@@ -186,6 +189,7 @@ function buttons() {
   $('launchertest').disabled = !serial || listening || busy;
   $('launcherreboot').disabled = !serial || listening || busy;
   $('send').disabled = !serial || listening || busy;
+  $('volcheck').disabled = !serial || listening || busy;
   // step 3 is for Launcher: shown once it is flashed, or while it is chosen
   $('launcherstep').hidden = !(launcherFlashed || isLauncher(chosenLabel()));
 }
@@ -325,10 +329,16 @@ $('listen').onclick = async () => {
       await port.open({ baudRate: 115200 });  // the USB-Serial/JTAG ignores the rate
       reader = port.readable.getReader();
       const dec = new TextDecoder();
+      let part = '';
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
-        outWrite(dec.decode(value, { stream: true }));
+        const text = dec.decode(value, { stream: true });
+        outWrite(text);
+        // Duplicitous's EVENT lines keep step 4's storage line current
+        const pieces = (part + text).split('\n');
+        part = pieces.pop();
+        for (const l of pieces) storageLine(l.replace(/\r$/, '').trim());
       }
     } catch (e) {
       if (!stopListen) outWrite('\n--- ' + e.name + ': ' + e.message + ' ---\n');
@@ -613,6 +623,43 @@ async function launcherPort() {
   return choosePort();
 }
 
+// ---- the Tab5's storage, as Duplicitous reports it -----------------------
+
+// From "VOL ..." (the answer to vols) and "EVENT ..." (told unasked when a
+// card or drive comes or goes), in any session or the output view.
+// present: true, false, or null (not known).
+const vols = { sd: { present: null }, usb: { present: null }, when: null };
+const VOL_NAMES = { sd: 'microSD card', usb: 'USB drive' };
+
+function showVols() {
+  const part = v => {
+    const x = vols[v];
+    if (x.present === null) return VOL_NAMES[v] + ': not known';
+    if (!x.present) return VOL_NAMES[v] + ': none';
+    return VOL_NAMES[v] + ': in' + (x.free !== undefined ? ', ' + (x.free / 1073741824).toFixed(1) + ' GB free' : '');
+  };
+  say('vols', part('sd') + ' · ' + part('usb') + (vols.when ? '  (as of ' + vols.when.toLocaleTimeString() + ')' : ''),
+      vols.sd.present === null && vols.usb.present === null ? 'muted' : '');
+  for (const o of $('sendvol').options)
+    o.textContent = VOL_NAMES[o.value] + (vols[o.value].present === false ? ' (none in)' : '');
+}
+
+function storageLine(l) {
+  let m = l.match(/^EVENT (sd|usb) (mounted|removed)$/);
+  if (m) {
+    vols[m[1]] = { present: m[2] === 'mounted' };   // free space not known until asked
+    vols.when = new Date();
+    showVols();
+    return;
+  }
+  m = l.match(/^VOL (sd|usb) (mounted|absent)(?: total=(\d+) free=(\d+))?$/);
+  if (m) {
+    vols[m[1]] = m[2] === 'mounted' ? { present: true, total: +m[3], free: +m[4] } : { present: false };
+    vols.when = new Date();
+    showVols();
+  }
+}
+
 // Open p, copy what arrives into Output and into lines, and give a way
 // to send a command and wait for a matching reply. lost is set if the
 // port goes away (the Tab5 reset).
@@ -639,7 +686,7 @@ async function consoleSession(p) {
         outWrite(text);
         const pieces = (part + text).split('\n');
         part = pieces.pop();
-        for (const l of pieces) s.lines.push(l.replace(/\r$/, '').trim());
+        for (const l of pieces) { const t = l.replace(/\r$/, '').trim(); s.lines.push(t); storageLine(t); }
       }
     } catch (e) { s.lost = e; }
   })();
@@ -823,6 +870,13 @@ $('send').onclick = async () => {
       throw new Error('This is ' + version + ', not Duplicitous: it cannot take files this way. Flash Duplicitous in steps 1 and 2.');
     report.push(version);
 
+    // where it is going: there, and room for it
+    const vol = $('sendvol').value;
+    if (!await s.ask('vols', /^(OK|ERR)\b/, 5000)) throw new Error('No answer to "vols".');
+    if (!vols[vol].present) throw new Error('There is no ' + VOL_NAMES[vol] + ' in the Tab5.');
+    if (vols[vol].free !== undefined && vols[vol].free < total)
+      throw new Error('The ' + VOL_NAMES[vol] + ' has ' + kb(vols[vol].free) + ' free; this needs ' + kb(total) + '.');
+
     // rb, then YMODEM-G on the raw bytes
     s.raw = [];
     await s.send('rb -g' + ($('sendforce').checked ? 'f' : '') + ' ' + dir);
@@ -890,6 +944,33 @@ $('send').onclick = async () => {
   const gone = s && (s.lost || booted);
   if (s) await s.close();
   if (gone) await afterReset(port, opened, 'sendinfo');
+  busy = false;
+  buttons();
+};
+
+// "Check storage": ask Duplicitous what is in, and close again.
+$('volcheck').onclick = async () => {
+  busy = true; buttons();
+  port = await launcherPort();
+  if (!port) { say('vols', 'No port chosen.', 'bad'); busy = false; buttons(); return; }
+  outHeading('Asking the Tab5 what storage it has');
+  let s = null, opened = Date.now();
+  try {
+    say('vols', 'Asking...', 'muted');
+    s = await consoleSession(port);
+    let version = null;
+    for (const end = Date.now() + 20000; !version && Date.now() < end && !s.lost; )
+      version = await s.ask('version', /^(Duplicitous|Launcher)\s+\S/, 1500);
+    if (s.lost) throw s.lost;
+    if (!version) throw new Error('No answer from the Tab5. Is Duplicitous on its screen?');
+    if (!/^Duplicitous/.test(version)) throw new Error(version + ' does not report its storage; Duplicitous does.');
+    if (!await s.ask('vols', /^(OK|ERR)\b/, 5000)) throw new Error('No answer to "vols".');
+  } catch (e) {
+    say('vols', e.message, 'bad');
+  }
+  const gone = s && s.lost;
+  if (s) await s.close();
+  if (gone) await afterReset(port, opened);
   busy = false;
   buttons();
 };

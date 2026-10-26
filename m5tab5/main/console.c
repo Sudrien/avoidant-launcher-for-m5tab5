@@ -305,6 +305,22 @@ static void progress(size_t done, size_t total, void *ctx)
     }
 }
 
+/* vols: "VOL sd mounted total=<bytes> free=<bytes>" or "VOL usb absent"
+ * for each, then OK. */
+static void cmd_vols(void)
+{
+    for (int i = 0; i < STORAGE_COUNT; i++) {
+        const char *name = storage_mount_path((storage_id_t)i);
+        uint64_t total, free_bytes;
+        if (vol_space(name, &total, &free_bytes) == ESP_OK)
+            reply("VOL %s mounted total=%llu free=%llu", name + 1,
+                  (unsigned long long)total, (unsigned long long)free_bytes);
+        else
+            reply("VOL %s absent", name + 1);
+    }
+    reply("OK");
+}
+
 static void handle(char *line)
 {
     char *arg = line;
@@ -320,7 +336,7 @@ static void handle(char *line)
     }
     if (!strcasecmp(cmd, "whoami")) { reply("M5Stack Tab5"); reply("OK"); return; }
     if (!strcasecmp(cmd, "help")) {
-        reply("version | whoami | help | ls [dir] | df [vol] | rb [-f] [-g] <dir> | sha256 <path>");
+        reply("version | whoami | help | vols | ls [dir] | df [vol] | rb [-f] [-g] <dir> | sha256 <path>");
         reply("rm <path> | mkdir <path> | install <path> | boot | reboot");
         reply("OK");
         return;
@@ -346,6 +362,8 @@ static void handle(char *line)
         else if (vol_space(path, &total, &free_bytes) == ESP_OK)
             reply("OK total=%llu free=%llu", (unsigned long long)total, (unsigned long long)free_bytes);
         else reply("ERR %s is not mounted", storage_label(storage_of_path(path)));
+    } else if (!strcasecmp(cmd, "vols")) {
+        cmd_vols();
     } else if (!strcasecmp(cmd, "rb")) {
         cmd_rb(arg);
     } else if (!strcasecmp(cmd, "sha256")) {
@@ -369,6 +387,25 @@ static void handle(char *line)
     work_unlock();
 }
 
+/*
+ * "EVENT sd mounted", "EVENT usb removed": told to the host when a card
+ * or a drive comes or goes, so the web flasher does not have to ask.
+ * Only between commands -- this runs in the console task, so never inside
+ * a reply, and never during a YMODEM transfer, which would read it as
+ * protocol. The first look reports what is already mounted.
+ */
+static void storage_events(void)
+{
+    static bool was[STORAGE_COUNT], looked;
+    for (int i = 0; i < STORAGE_COUNT; i++) {
+        bool now = storage_present((storage_id_t)i);
+        if (looked ? now != was[i] : now)
+            reply("EVENT %s %s", storage_mount_path((storage_id_t)i) + 1, now ? "mounted" : "removed");
+        was[i] = now;
+    }
+    looked = true;
+}
+
 static void console_task(void *arg)
 {
     (void)arg;
@@ -377,7 +414,10 @@ static void console_task(void *arg)
     bool overflow = false;
     for (;;) {
         uint8_t c;
-        if (usb_serial_jtag_read_bytes(&c, 1, portMAX_DELAY) != 1) continue;
+        if (usb_serial_jtag_read_bytes(&c, 1, pdMS_TO_TICKS(250)) != 1) {
+            storage_events();
+            continue;
+        }
         if (c == '\r') continue;
         if (c != '\n') {
             if (len < sizeof line - 1) line[len++] = (char)c;

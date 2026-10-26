@@ -73,6 +73,8 @@ card, `/usb/...` for the drive.
 
     version              Duplicitous <version>
     whoami               M5Stack Tab5
+    vols                 VOL sd mounted total=<bytes> free=<bytes> |
+                         VOL usb absent, one line each, then OK
     ls [dir]             D <name> | F <size> <name>, then OK; with no
                          dir, the mounted volumes (D sd, D usb)
     df [vol]             OK total=<bytes> free=<bytes>, of /sd unless /usb
@@ -83,6 +85,11 @@ card, `/usb/...` for the drive.
     install <path>       PROGRESS <done>/<total> lines, then OK
     boot                 boot app2 once
     reboot
+
+Unasked, between commands, the console says when a card or a drive comes
+or goes: `EVENT sd mounted`, `EVENT usb removed`. Never inside a reply
+or a transfer. The first, just after the console starts, reports what is
+already in.
 
 ### Sending files
 

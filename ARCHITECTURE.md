@@ -135,3 +135,17 @@ the later one is what happened.
   what fails, saying "N .bin files here are not an ESP32-P4 app" on the
   last page and logging each with its reason (`phase: not listed: ...`).
   The console's `install` still refuses them as before.
+- **0017** Storage notices for the flasher. The console tells the host,
+  unasked, when a card or a drive comes or goes (`EVENT sd mounted`,
+  `EVENT usb removed`), from the console task between commands, so
+  never inside a reply or a YMODEM transfer; its first look reports
+  what is already in. `vols` answers with both volumes' state and space.
+  The page keeps a storage line in step 4 from `VOL` and `EVENT` lines,
+  in any session and in "Show its output"; "Check storage" asks; Send
+  asks `vols` first and refuses a volume that is not in, or too full.
+  The page sees notices only while it has the port open: it does not
+  hold it open between actions, because flashing needs it. Tested in
+  headless Chromium against the fake port: the storage line after
+  Check storage, the USB drive absent and then too full, and `EVENT`
+  lines in the output view (one split across two reads) updating the
+  line and the volume menu.
