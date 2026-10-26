@@ -17,6 +17,9 @@
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
 #include "esp_app_desc.h"
+#include "esp_rom_sys.h"
+#include "esp_timer.h"
+#include "hal/usb_serial_jtag_ll.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
@@ -104,11 +107,66 @@ static void cmd_ls(const char *arg)
 
 /* ---- YMODEM, on the console's port ---------------------------------------- */
 
+/*
+ * During a transfer the port is read straight from the hardware FIFO,
+ * not through the driver.
+ *
+ * The driver's interrupt empties the 64-byte FIFO into its ring buffer
+ * whatever happens, and when the ring buffer is full the bytes are
+ * dropped (usb_serial_jtag.c: xRingbufferSendFromISR()'s result is not
+ * looked at). By then USB has acknowledged them, so the host never slows
+ * down. A YMODEM-G stream, which nothing paces, fills the ring buffer the
+ * first time the card stalls on a write: 0009 on a Tab5 failed at 9216
+ * bytes, "bad block". Left in the FIFO instead, unread bytes make the
+ * hardware NAK the host's next packet, and USB's own flow control holds
+ * the sender until the card catches up.
+ *
+ * So rb turns the receive interrupt off, takes whatever the ring buffer
+ * already holds, and reads the FIFO itself until the transfer ends.
+ */
+static uint8_t s_pend[512];     /* from the ring buffer, read first */
+static size_t s_pend_n, s_pend_at;
+
+static void raw_begin(void)
+{
+    usb_serial_jtag_ll_disable_intr_mask(USB_SERIAL_JTAG_INTR_SERIAL_OUT_RECV_PKT);
+    vTaskDelay(pdMS_TO_TICKS(2));   /* an interrupt already under way finishes */
+    s_pend_at = 0;
+    s_pend_n = 0;
+    int r;
+    while (s_pend_n < sizeof s_pend &&
+           (r = usb_serial_jtag_read_bytes(s_pend + s_pend_n, sizeof s_pend - s_pend_n, 0)) > 0)
+        s_pend_n += (size_t)r;
+}
+
+static void raw_end(void)
+{
+    usb_serial_jtag_ll_clr_intsts_mask(USB_SERIAL_JTAG_INTR_SERIAL_OUT_RECV_PKT);
+    usb_serial_jtag_ll_ena_intr_mask(USB_SERIAL_JTAG_INTR_SERIAL_OUT_RECV_PKT);
+}
+
 static size_t yrd(void *ctx, uint8_t *buf, size_t n, int ms)
 {
     (void)ctx;
-    int r = usb_serial_jtag_read_bytes(buf, n, pdMS_TO_TICKS(ms));
-    return r > 0 ? (size_t)r : 0;
+    if (s_pend_at < s_pend_n) {
+        size_t k = s_pend_n - s_pend_at < n ? s_pend_n - s_pend_at : n;
+        memcpy(buf, s_pend + s_pend_at, k);
+        s_pend_at += k;
+        return k;
+    }
+    int64_t end = esp_timer_get_time() + (int64_t)ms * 1000, idle = esp_timer_get_time();
+    for (;;) {
+        if (usb_serial_jtag_ll_rxfifo_data_available()) {
+            int r = usb_serial_jtag_ll_read_rxfifo(buf, n);
+            if (r > 0) return (size_t)r;
+        }
+        int64_t now = esp_timer_get_time();
+        if (now >= end) return 0;
+        /* spin briefly -- the next packet is usually microseconds away --
+         * then give the CPU back a tick at a time */
+        if (now - idle < 2000) esp_rom_delay_us(10);
+        else vTaskDelay(1);
+    }
 }
 
 static void yflush(void *ctx)
@@ -168,12 +226,14 @@ static void cmd_rb(char *arg)
     esp_log_level_t was = esp_log_level_get("*");
     esp_log_level_set("*", ESP_LOG_NONE);
     xfer_begin("Receiving", dir);
+    raw_begin();
     const ymodem_io_t io = { .read = yrd, .flush_in = yflush, .write = ywr, .progress = yprog };
     ymodem_result_t res;
     bool ok = ymodem_receive(&io, dir, force, stream, &res);
     xfer_end();
     vTaskDelay(pdMS_TO_TICKS(200));     /* let a sender finish and stop listening */
     yflush(NULL);
+    raw_end();
     esp_log_level_set("*", was);
     vol_release(id);
     printf("\r\n");

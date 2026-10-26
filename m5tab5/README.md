@@ -83,9 +83,12 @@ card, `/usb/...` for the drive.
 flasher, `sz --ymodem` (lrzsz) from a terminal on the port, Tera Term,
 ExtraPuTTY. Type `rb /sd/bins`, then start the send; the Tab5 asks every
 second for a minute. `-g` asks for YMODEM-G, which streams without
-waiting for an acknowledgement per block: much faster, and safe on the
-Tab5's native USB, which does not drop bytes; a sender that does not
-know G will not start, so leave it off for those.
+waiting for an acknowledgement per block: much faster. It is safe
+because, during a transfer, Duplicitous reads the USB port's hardware
+FIFO itself rather than through ESP-IDF's driver, so USB's own flow
+control holds the sender back while the card is busy (the driver would
+drop the bytes instead -- see main/console.c). A sender that does not
+know G will not start, so leave `-g` off for those.
 
 A file that is already there stops the batch unless `-f` is given. Each
 file is written as `<name>.part` and renamed when complete, so a

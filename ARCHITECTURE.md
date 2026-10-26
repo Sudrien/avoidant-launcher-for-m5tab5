@@ -65,3 +65,16 @@ the later one is what happened.
   reported with the Tab5's reason, `-f` replacing, `../` refused. That
   run found Send never enabled at load, fixed here. Not yet run against
   a Tab5.
+- **0011** m5tab5: rb reads the USB FIFO itself, so YMODEM-G cannot
+  overrun. *0010 on a Tab5* (2c75cac): `READY ymodem-g /sd/bins`, then
+  `ERR bad block at 9216 bytes (0 files completed)`. Not a second
+  program on the port: ESP-IDF's USB-Serial/JTAG driver empties the
+  64-byte FIFO into its 4 KB ring buffer on every packet and drops what
+  does not fit (`usb_serial_jtag.c`, `xRingbufferSendFromISR()`
+  unchecked, in 5.5 and 6.1 alike), after USB has already acknowledged
+  it -- so a stream nothing paces is lost the first time the card stalls
+  on a write. 0009's README said the link "does not drop bytes"; at the
+  driver it does. Now `rb` masks the receive interrupt, takes what the
+  ring buffer holds, and reads the FIFO directly until the transfer
+  ends; unread bytes make the hardware NAK, and the host waits. Built
+  with 5.5.1 and 6.1.
