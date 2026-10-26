@@ -15,6 +15,9 @@ Duplicitous treats it as one of its own.
 - **Built by a GitHub Action.** Releases come from a workflow in the
   project's own repository, not from someone's machine.
 
+- **Builds with ESP-IDF 6.1.** Older versions may be supported too; 6.1
+  must work.
+
 - **Both binaries in every release:**
   - the standalone image, from `idf.py merge-bin` (or the equivalent),
     written from 0x0, named `..._standalone.bin`;
@@ -53,6 +56,16 @@ Duplicitous treats it as one of its own.
   hand) and viewable on the device.
 
 - **The same list in the documentation.**
+
+## What inclusion gets you
+
+- **Automatic publishing on the flasher.** Each new release's binaries
+  appear on the web flasher within a day, with no human approval.
+- **Automatic library checks.** A weekly check of the project's
+  `dependencies.lock` against the registry, git remotes and ESP-IDF's
+  tags, reported in one issue here.
+
+To ask for inclusion, open an issue with the *Request inclusion* form.
 
 ## Future benefits
 

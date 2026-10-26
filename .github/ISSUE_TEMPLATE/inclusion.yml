@@ -1,0 +1,69 @@
+name: Request inclusion
+description: Ask for a Tab5 firmware to be published on the flasher and checked weekly.
+title: "Include: <project name>"
+labels: ["inclusion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The requirements are in [standards.md](../blob/main/standards.md).
+        Tick each one the project meets now; leave the rest unticked and
+        say why below.
+
+  - type: input
+    id: repo
+    attributes:
+      label: Repository
+      description: The project's GitHub repository.
+      placeholder: https://github.com/<owner>/<given name>-<purpose>-for-m5tab5
+    validations:
+      required: true
+
+  - type: input
+    id: release
+    attributes:
+      label: Release to review
+      description: A release with both binaries and their checksums.
+      placeholder: https://github.com/<owner>/<repo>/releases/tag/<tag>
+    validations:
+      required: true
+
+  - type: input
+    id: firmware-dir
+    attributes:
+      label: Firmware directory
+      description: Where the ESP-IDF project is in the repository (its dependencies.lock is checked weekly). "." for the root.
+      placeholder: "."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: required
+    attributes:
+      label: Requirements
+      options:
+        - label: The binaries' names do not start with tab5 or m5tab5
+        - label: Built by a GitHub Action in the project's repository
+        - label: Builds with ESP-IDF 6.1
+        - label: Every release has a standalone (from 0x0, ..._standalone.bin) and an app-only binary
+        - label: Every release has a SHA-256 for each binary
+        - label: Every website contacted without the user opting in is listed in the documentation
+        - label: Runs under the 3 MB Arduino layout (app3M_fat9M_16MB)
+        - label: USB flash drives are supported wherever SD cards are (or neither is)
+        - label: exFAT is supported on external storage (or there is none)
+        - label: A build-generated library / version / licence list is viewable on the device
+        - label: The same list is in the documentation
+
+  - type: textarea
+    id: sites
+    attributes:
+      label: Websites contacted without opting in
+      description: Each one, and what for. "None" if none.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything unmet, and anything else
+      description: Requirements not yet met and the plan for them; anything a reviewer should know.
