@@ -23,7 +23,7 @@
 #include "freertos/task.h"
 
 #include "install.h"
-#include "sd.h"
+#include "vol.h"
 
 static const char *TAG = "console";
 
@@ -48,30 +48,20 @@ static void reply(const char *fmt, ...)
     fflush(stdout);
 }
 
-/* "bins/a.bin" or "/bins/a.bin" -> "/sd/bins/a.bin". False for a path
- * that would leave the card. */
-static bool card_path(const char *in, char *out, size_t out_len)
+/* The volume's own root: /sd or /usb itself. */
+static bool is_root(const char *path)
 {
-    while (*in == '/') in++;
-    for (const char *p = in; (p = strstr(p, "..")) != NULL; p += 2) {
-        bool start = p == in || p[-1] == '/';
-        bool end = p[2] == '\0' || p[2] == '/';
-        if (start && end) return false;
-    }
-    int n = snprintf(out, out_len, *in ? SD_MOUNT "/%s" : SD_MOUNT, in);
-    if (n < 0 || (size_t)n >= out_len) return false;
-    /* no trailing slash; FatFs dislikes it */
-    size_t l = strlen(out);
-    while (l > strlen(SD_MOUNT) && out[l - 1] == '/') out[--l] = '\0';
-    return true;
+    storage_id_t id = storage_of_path(path);
+    return id != STORAGE_COUNT && !strcmp(path, storage_mount_path(id));
 }
 
-/* mkdir -p for the directories above path. */
+/* mkdir -p for the directories above path (on a volume). */
 static void make_parents(const char *path)
 {
     char tmp[LINE_MAX_LEN];
     snprintf(tmp, sizeof tmp, "%s", path);
-    for (char *p = tmp + strlen(SD_MOUNT) + 1; *p; p++) {
+    char *p = strchr(tmp + 1, '/');        /* past /sd or /usb */
+    for (p = p ? p + 1 : tmp + strlen(tmp); *p; p++) {
         if (*p != '/') continue;
         *p = '\0';
         mkdir(tmp, 0775);
@@ -94,35 +84,43 @@ static size_t read_exact(uint8_t *buf, size_t n)
 
 static void cmd_ls(const char *arg)
 {
-    char path[LINE_MAX_LEN];
-    if (!card_path(arg, path, sizeof path)) { reply("ERR bad path"); return; }
-    DIR *d = opendir(path);
-    if (!d) { reply("ERR cannot open %s", path); return; }
-    struct dirent *e;
-    while ((e = readdir(d)) != NULL) {
-        char full[LINE_MAX_LEN + 260];
-        snprintf(full, sizeof full, "%s/%s", path, e->d_name);
-        struct stat st;
-        if (e->d_type == DT_DIR) reply("D %s", e->d_name);
-        else if (stat(full, &st) == 0) reply("F %ld %s", (long)st.st_size, e->d_name);
-        else reply("F ? %s", e->d_name);
+    if (!*arg || !strcmp(arg, "/")) {
+        /* the volumes themselves */
+        for (int i = 0; i < STORAGE_COUNT; i++)
+            if (storage_present((storage_id_t)i)) reply("D %s", storage_mount_path((storage_id_t)i) + 1);
+        reply("OK");
+        return;
     }
-    closedir(d);
-    reply("OK");
+    char path[LINE_MAX_LEN];
+    if (!vol_path(arg, path, sizeof path)) { reply("ERR bad path: start with /sd or /usb"); return; }
+    storage_id_t id;
+    if (!vol_hold(path, &id)) { vol_release(id); reply("ERR %s is not mounted", storage_label(id)); return; }
+    DIR *d = opendir(path);
+    if (!d) {
+        reply("ERR cannot open %s", path);
+    } else {
+        struct dirent *e;
+        while ((e = readdir(d)) != NULL) {
+            char full[LINE_MAX_LEN + 260];
+            snprintf(full, sizeof full, "%s/%s", path, e->d_name);
+            struct stat st;
+            if (e->d_type == DT_DIR) reply("D %s", e->d_name);
+            else if (stat(full, &st) == 0) reply("F %lld %s", (long long)st.st_size, e->d_name);
+            else reply("F ? %s", e->d_name);
+        }
+        closedir(d);
+        reply("OK");
+    }
+    vol_release(id);
 }
 
-static void cmd_put(const char *arg)
+static void put_into(const char *path, unsigned long size)
 {
-    char *end;
-    unsigned long size = strtoul(arg, &end, 0);
-    while (*end == ' ') end++;
-    char path[LINE_MAX_LEN], part[LINE_MAX_LEN + 8];
-    if (end == arg || !*end) { reply("ERR usage: put <size> <path>"); return; }
-    if (!card_path(end, path, sizeof path) || !strcmp(path, SD_MOUNT)) { reply("ERR bad path"); return; }
+    char part[LINE_MAX_LEN + 8];
     snprintf(part, sizeof part, "%s.part", path);
 
     uint64_t total, free_bytes;
-    if (sd_space(&total, &free_bytes) != ESP_OK) { reply("ERR no card"); return; }
+    if (vol_space(path, &total, &free_bytes) != ESP_OK) { reply("ERR cannot read free space"); return; }
     if (size > free_bytes) { reply("ERR %lu bytes do not fit, %llu free", size, (unsigned long long)free_bytes); return; }
 
     make_parents(path);
@@ -136,18 +134,54 @@ static void cmd_put(const char *arg)
     while (done < size) {
         size_t want = size - done < PUT_CHUNK ? size - done : PUT_CHUNK;
         size_t got = read_exact(buf, want);
-        if (got == 0) { fail = "stream read timeout"; break; }
-        if (fwrite(buf, 1, got, f) != got) { fail = "card write failed"; break; }
+        if (got != want) { fail = "stream read timeout"; break; }
+        if (fwrite(buf, 1, got, f) != got) { fail = "write failed"; break; }
         done += got;
         /* per chunk the host sent -- it never has more than one in flight */
-        if (got == want) reply("ACK %lu/%lu", done, size);
-        else { fail = "stream read timeout"; break; }
+        reply("ACK %lu/%lu", done, size);
     }
-    if (fclose(f) != 0 && !fail) fail = "card write failed";
+    if (fclose(f) != 0 && !fail) fail = "write failed";
     if (fail) { unlink(part); reply("ERR %s", fail); return; }
     unlink(path);                       /* FatFs rename will not replace */
     if (rename(part, path) != 0) { unlink(part); reply("ERR rename: %s", strerror(errno)); return; }
     reply("OK %lu", size);
+}
+
+static void cmd_put(const char *arg)
+{
+    char *end;
+    unsigned long size = strtoul(arg, &end, 0);
+    while (*end == ' ') end++;
+    char path[LINE_MAX_LEN];
+    if (end == arg || !*end) { reply("ERR usage: put <size> <path>"); return; }
+    if (!vol_path(end, path, sizeof path) || is_root(path)) { reply("ERR bad path: /sd/... or /usb/..."); return; }
+    storage_id_t id;
+    if (vol_hold(path, &id)) put_into(path, size);
+    else reply("ERR %s is not mounted", storage_label(id));
+    vol_release(id);
+}
+
+static void cmd_rm_mkdir(bool mk, const char *arg)
+{
+    char path[LINE_MAX_LEN];
+    if (!vol_path(arg, path, sizeof path) || is_root(path)) { reply("ERR bad path: /sd/... or /usb/..."); return; }
+    storage_id_t id;
+    if (!vol_hold(path, &id)) {
+        reply("ERR %s is not mounted", storage_label(id));
+    } else if (mk) {
+        char probe[LINE_MAX_LEN + 4];
+        snprintf(probe, sizeof probe, "%s/x", path);
+        make_parents(probe);
+        struct stat st;
+        if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) reply("OK");
+        else reply("ERR mkdir: %s", strerror(errno));
+    } else {
+        struct stat st;
+        int r = stat(path, &st) != 0 ? -1 : S_ISDIR(st.st_mode) ? rmdir(path) : unlink(path);
+        if (r == 0) reply("OK");
+        else reply("ERR rm: %s", strerror(errno));
+    }
+    vol_release(id);
 }
 
 static void progress(size_t done, size_t total, void *ctx)
@@ -175,7 +209,7 @@ static void handle(char *line)
     }
     if (!strcasecmp(cmd, "whoami")) { reply("M5Stack Tab5"); reply("OK"); return; }
     if (!strcasecmp(cmd, "help")) {
-        reply("version | whoami | help | ls [dir] | df | put <size> <path> | rm <path>");
+        reply("version | whoami | help | ls [dir] | df [vol] | put <size> <path> | rm <path>");
         reply("mkdir <path> | install <path> | boot | reboot");
         reply("OK");
         return;
@@ -190,38 +224,24 @@ static void handle(char *line)
         return;
     }
 
-    /* everything below touches the card */
+    /* everything below touches a volume */
     work_lock();
-    if (!sd_mounted() && sd_mount() != ESP_OK) {
-        reply("ERR no card");
-    } else if (!strcasecmp(cmd, "ls")) {
+    if (!strcasecmp(cmd, "ls")) {
         cmd_ls(arg);
     } else if (!strcasecmp(cmd, "df")) {
         uint64_t total, free_bytes;
-        if (sd_space(&total, &free_bytes) == ESP_OK)
+        char path[LINE_MAX_LEN];
+        if (!vol_path(*arg ? arg : "/sd", path, sizeof path)) reply("ERR bad path: /sd or /usb");
+        else if (vol_space(path, &total, &free_bytes) == ESP_OK)
             reply("OK total=%llu free=%llu", (unsigned long long)total, (unsigned long long)free_bytes);
-        else reply("ERR no card");
+        else reply("ERR %s is not mounted", storage_label(storage_of_path(path)));
     } else if (!strcasecmp(cmd, "put")) {
         cmd_put(arg);
     } else if (!strcasecmp(cmd, "rm") || !strcasecmp(cmd, "mkdir")) {
-        char path[LINE_MAX_LEN];
-        if (!*arg || !card_path(arg, path, sizeof path) || !strcmp(path, SD_MOUNT)) reply("ERR bad path");
-        else if (!strcasecmp(cmd, "mkdir")) {
-            char probe[LINE_MAX_LEN + 4];
-            snprintf(probe, sizeof probe, "%s/x", path);
-            make_parents(probe);
-            struct stat st;
-            if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) reply("OK");
-            else reply("ERR mkdir: %s", strerror(errno));
-        } else {
-            struct stat st;
-            int r = stat(path, &st) != 0 ? -1 : S_ISDIR(st.st_mode) ? rmdir(path) : unlink(path);
-            if (r == 0) reply("OK");
-            else reply("ERR rm: %s", strerror(errno));
-        }
+        cmd_rm_mkdir(!strcasecmp(cmd, "mkdir"), arg);
     } else if (!strcasecmp(cmd, "install")) {
         char path[LINE_MAX_LEN], err[128];
-        if (!*arg || !card_path(arg, path, sizeof path)) reply("ERR bad path");
+        if (!vol_path(arg, path, sizeof path)) reply("ERR bad path: /sd/... or /usb/...");
         else if (install_from_file(path, progress, NULL, err, sizeof err) == ESP_OK) reply("OK installed");
         else reply("ERR %s", err);
     } else {

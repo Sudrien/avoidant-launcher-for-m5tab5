@@ -1,12 +1,13 @@
 /*
  * Duplicitous for the M5Stack Tab5 -- choose a .bin on the microSD card,
- * write it to app2 and boot it, in the manner of bmorcelli/Launcher.
+ * or a USB drive, write it to app2 and boot it, in the manner of
+ * bmorcelli/Launcher.
  *
  * At power-on, if app2 holds an app, it boots after a short countdown
- * unless the screen is touched. Otherwise, or after a touch, the card's
- * folders and .bin files are listed; tapping a .bin asks, writes and
+ * unless the screen is touched. Otherwise, or after a touch, the card and
+ * the drive are listed, then their folders and .bin files; tapping a .bin asks, writes and
  * boots it. The console on the USB-C port (console.h) does the same
- * from a computer, and sends files to the card.
+ * from a computer, and sends files to either.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -23,6 +24,10 @@
 #include "freertos/task.h"
 #include "nvs_flash.h"
 
+#include "storage.h"
+#include "storage_io.h"
+#include "usbhost.h"
+
 #include "gfx.h"
 #include "lcd.h"
 #include "tab5io.h"
@@ -30,7 +35,7 @@
 
 #include "console.h"
 #include "install.h"
-#include "sd.h"
+#include "vol.h"
 
 static const char *TAG = "duplicitous";
 
@@ -134,7 +139,8 @@ typedef struct {
 
 static entry_t *s_ents;
 static int s_n;
-static char s_dir[512] = SD_MOUNT;
+/* "" is the list of volumes; otherwise a directory on one. */
+static char s_dir[512] = "";
 
 static bool is_bin(const char *n)
 {
@@ -159,39 +165,63 @@ static void free_list(void)
 
 /* Folders and .bin files in s_dir, folders first. Hidden ones (a leading
  * dot, macOS's ._ files among them) are left out. */
+static bool add(const char *name, bool dir, long size)
+{
+    static int cap;
+    if (s_n == 0) cap = 0;
+    if (s_n == cap) {
+        int c = cap ? cap * 2 : 32;
+        entry_t *n = realloc(s_ents, c * sizeof *n);
+        if (!n) return false;
+        s_ents = n;
+        cap = c;
+    }
+    s_ents[s_n].name = strdup(name);
+    if (!s_ents[s_n].name) return false;
+    s_ents[s_n].dir = dir;
+    s_ents[s_n].size = size;
+    s_n++;
+    return true;
+}
+
 static void scan(void)
 {
     free_list();
+    if (!s_dir[0]) {
+        /* the volumes, in storage_id_t order: the card, then the drive */
+        for (int i = 0; i < STORAGE_COUNT; i++)
+            if (storage_present((storage_id_t)i)) add(storage_mount_path((storage_id_t)i) + 1, true, -1);
+        return;
+    }
     work_lock();
+    storage_id_t vid;
+    if (!vol_hold(s_dir, &vid)) {
+        /* it went away while we were in it */
+        vol_release(vid);
+        work_unlock();
+        s_dir[0] = '\0';
+        scan();
+        return;
+    }
     DIR *d = opendir(s_dir);
     if (d) {
-        int cap = 0;
         struct dirent *e;
         while ((e = readdir(d)) != NULL) {
             bool dir = e->d_type == DT_DIR;
             if (e->d_name[0] == '.' || (!dir && !is_bin(e->d_name))) continue;
             if (!strcasecmp(e->d_name, "System Volume Information")) continue;
-            if (s_n == cap) {
-                cap = cap ? cap * 2 : 32;
-                entry_t *n = realloc(s_ents, cap * sizeof *n);
-                if (!n) break;
-                s_ents = n;
-            }
-            entry_t *t = &s_ents[s_n];
-            t->name = strdup(e->d_name);
-            if (!t->name) break;
-            t->dir = dir;
-            t->size = -1;
+            long size = -1;
             if (!dir) {
                 char full[800];
                 struct stat st;
                 snprintf(full, sizeof full, "%s/%s", s_dir, e->d_name);
-                if (stat(full, &st) == 0) t->size = (long)st.st_size;
+                if (stat(full, &st) == 0) size = (long)st.st_size;
             }
-            s_n++;
+            if (!add(e->d_name, dir, size)) break;
         }
         closedir(d);
     }
+    vol_release(vid);
     work_unlock();
     if (s_n) qsort(s_ents, s_n, sizeof *s_ents, ent_cmp);
 }
@@ -270,20 +300,27 @@ static void install_and_boot(const entry_t *e)
 static void up_dir(void)
 {
     char *slash = strrchr(s_dir, '/');
-    if (slash && slash != s_dir && strcmp(s_dir, SD_MOUNT)) *slash = '\0';
+    if (!slash || slash == s_dir) s_dir[0] = '\0';   /* /sd -> the volumes */
+    else *slash = '\0';
+}
+
+/* A tap, or false when a card or drive came or went first. */
+static bool tap_or_change(int *x, int *y, uint32_t *gen)
+{
+    for (;;) {
+        if (wait_tap(x, y, 500)) return true;
+        uint32_t g = storage_generation();
+        if (g != *gen) { *gen = g; return false; }
+    }
 }
 
 static void menu(void)
 {
     int page = 0;
     bool rescan = true;
+    uint32_t gen = 0;
     for (;;) {
-        if (!sd_mounted()) {
-            work_lock();
-            sd_mount();
-            work_unlock();
-        }
-        if (rescan) { scan(); page = 0; rescan = false; }
+        if (rescan) { gen = storage_generation(); scan(); page = 0; rescan = false; }
 
         char app[64] = "";
         bool have_app = install_present(app, sizeof app);
@@ -294,7 +331,7 @@ static void menu(void)
         if (page >= pages) page = pages - 1;
 
         gfx_fill_rect(0, 0, W, H, C_BG);
-        header(duplicitous_title(), sd_mounted() ? s_dir : "no microSD card");
+        header(duplicitous_title(), s_dir[0] ? s_dir : "microSD and USB");
         for (int r = 0; r < ROWS; r++) {
             int i = page * ROWS + r - extra;
             int y = LIST_Y + r * ROW_H;
@@ -308,7 +345,14 @@ static void menu(void)
                 const entry_t *e = &s_ents[i];
                 if (e->dir) {
                     char s[300];
-                    snprintf(s, sizeof s, "%s/", e->name);
+                    if (!s_dir[0]) {
+                        /* a volume: its label, "microSD" or "USB" */
+                        char mp[8];
+                        snprintf(mp, sizeof mp, "/%s", e->name);
+                        snprintf(s, sizeof s, "%s", storage_label(storage_of_path(mp)));
+                    } else {
+                        snprintf(s, sizeof s, "%s/", e->name);
+                    }
                     text(PAD, y + (ROW_H - TEXT_H) / 2, s, W - 2 * PAD, C_DIR);
                 } else {
                     char sz[24];
@@ -320,13 +364,15 @@ static void menu(void)
             }
             gfx_fill_rect(0, y + ROW_H - 2, W, 2, C_RULE);
         }
-        if (sd_mounted() && s_n == 0)
-            text(PAD, LIST_Y + (have_app ? ROW_H : 0) + 30, "No folders or .bin files here.", W - 2 * PAD, C_DIM);
+        if (s_n == 0)
+            text(PAD, LIST_Y + (have_app ? ROW_H : 0) + 30,
+                 s_dir[0] ? "No folders or .bin files here." : "No microSD card or USB drive.",
+                 W - 2 * PAD, C_DIM);
 
         /* Up, Prev, Next, Rescan */
         const int bw = (W - 5 * PAD) / 4, by = H - FOOT_H + 20, bh = FOOT_H - 40;
         const char *labels[4] = { "Up", "Prev", "Next", "Rescan" };
-        bool on[4] = { strcmp(s_dir, SD_MOUNT) != 0, page > 0, page < pages - 1, true };
+        bool on[4] = { s_dir[0] != '\0', page > 0, page < pages - 1, true };
         for (int b = 0; b < 4; b++)
             button(PAD + b * (bw + PAD), by, bw, bh, labels[b], on[b] ? C_BTN : C_RULE);
         char pg[24];
@@ -335,14 +381,14 @@ static void menu(void)
         show();
 
         int x, y;
-        wait_tap(&x, &y, -1);
+        if (!tap_or_change(&x, &y, &gen)) { rescan = true; continue; }
         if (y >= by) {
             int b = (x - PAD) / (bw + PAD);
             if (b < 0 || b > 3 || !on[b]) continue;
             if (b == 0) { up_dir(); rescan = true; }
             if (b == 1) page--;
             if (b == 2) page++;
-            if (b == 3) { work_lock(); sd_mount(); work_unlock(); rescan = true; }
+            if (b == 3) rescan = true;
             continue;
         }
         if (y < LIST_Y || y >= LIST_Y + ROWS * ROW_H) continue;
@@ -352,7 +398,7 @@ static void menu(void)
             message("Not booted", "app2 could not be marked to boot.", C_BAD);
         } else if (i >= 0 && i < s_n) {
             if (s_ents[i].dir) {
-                size_t l = strlen(s_dir);
+                size_t l = strlen(s_dir);   /* "" + "/sd", or "/sd" + "/bins" */
                 if (l + 1 + strlen(s_ents[i].name) < sizeof s_dir) {
                     snprintf(s_dir + l, sizeof s_dir - l, "/%s", s_ents[i].name);
                     rescan = true;
@@ -409,9 +455,20 @@ void app_main(void)
     show();
     lcd_backlight_set(BRIGHTNESS);
 
-    work_lock();
-    sd_mount();
-    work_unlock();
+    /* The USB host before storage: storage registers mass storage as a
+     * class with it, which is refused once the port is up. Then the port,
+     * which powers the USB-A socket. The card and the drive mount on
+     * storage's own poll task, and remount as they come and go. */
+    ESP_ERROR_CHECK(usbhost_init(tab5io_exp2()));
+    storage_io_init();
+    static const storage_usb_t usb = {
+        .register_class = usbhost_register_class,
+        .set_power      = usbhost_set_power,
+        .powered        = usbhost_powered,
+    };
+    ESP_ERROR_CHECK(storage_init(&usb));
+    usbhost_start();
+
     if (console_start() != ESP_OK) ESP_LOGE(TAG, "no serial console");
 
     autoboot();

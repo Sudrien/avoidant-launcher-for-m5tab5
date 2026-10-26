@@ -18,7 +18,7 @@ void work_unlock(void);
 typedef void (*install_progress_fn)(size_t done, size_t total, void *ctx);
 
 /*
- * Write the app in `path` to app2. Takes either
+ * Write the app in `path` (on /sd or /usb) to app2. Takes either
  *   - an app image (starts with 0xE9), as `idf.py build` leaves in
  *     build/<project>.bin and Launcher's own .bins are, or
  *   - a merged image from 0x0 (`idf.py merge-bin`, the projects'

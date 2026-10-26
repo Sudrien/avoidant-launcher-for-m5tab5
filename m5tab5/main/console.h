@@ -11,8 +11,10 @@
  *   whoami                  "M5Stack Tab5", then OK
  *   help                    the command list, then OK
  *   ls [dir]                one line per entry -- "D <name>" or
- *                           "F <size> <name>" -- then OK
- *   df                      "OK total=<bytes> free=<bytes>"
+ *                           "F <size> <name>" -- then OK. With no dir,
+ *                           the mounted volumes: "D sd", "D usb".
+ *   df [vol]                "OK total=<bytes> free=<bytes>", of /sd
+ *                           unless /usb is named
  *   put <size> <path>       creates/replaces path (parent directories are
  *                           made). Replies "READY <size>"; then the host
  *                           sends <size> raw bytes in chunks of 2048
@@ -28,9 +30,9 @@
  *   boot                    boot app2 (once; a reset comes back here)
  *   reboot                  restart the launcher
  *
- * Paths are on the card, relative to its root ("bins/app.bin" or
- * "/bins/app.bin"); ".." is refused. The size comes before the path so
- * the path may contain spaces.
+ * Paths start with the volume: /sd/... for the card, /usb/... for a USB
+ * drive (the leading slash may be left off); ".." is refused. The size
+ * comes before the path so the path may contain spaces.
  *
  * SPDX-License-Identifier: MIT
  */

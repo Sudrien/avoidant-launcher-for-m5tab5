@@ -3,8 +3,9 @@
 Two things for the M5Stack Tab5 (ESP32-P4):
 
 - **[m5tab5/](m5tab5/)** -- Duplicitous, a minimal launcher: pick a
-  `.bin` on the microSD card and it is written to the `app2` slot and
-  booted. A console on the USB-C port sends files to the card.
+  `.bin` on the microSD card or a USB drive (FAT32 or exFAT) and it is
+  written to the `app2` slot and booted. A console on the USB-C port
+  sends files to either.
 - **[web/](web/)** -- a web flasher, over the Tab5's USB-C port.
 
 **Open the flasher: <https://sudrien.github.io/duplicitous-for-m5tab5/>**

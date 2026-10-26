@@ -1,7 +1,8 @@
 # Duplicitous -- the launcher
 
 A minimal launcher for the M5Stack Tab5 (ESP32-P4): pick a `.bin` on
-the microSD card, it is written to the `app2` slot and booted -- in the
+the microSD card or a USB drive, it is written to the `app2` slot and
+booted -- in the
 manner of [bmorcelli/Launcher](https://github.com/bmorcelli/Launcher),
 in a few hundred lines of plain ESP-IDF.
 
@@ -9,7 +10,9 @@ in a few hundred lines of plain ESP-IDF.
 
 At power-on, if `app2` holds an app, Duplicitous boots it after three
 seconds unless the screen is touched. Otherwise, or after a touch, it
-lists the card's folders and `.bin` files. Tap a folder to open it, a
+lists the microSD card and the USB drive (FAT32 or exFAT, either or
+both), then their folders and `.bin` files. Plugging or pulling one
+updates the list. Tap a folder to open it, a
 `.bin` to install and boot it; *Boot app2* at the top runs what is
 already there without writing anything.
 
@@ -57,13 +60,15 @@ a second OTA slot) will not find their data partitions.
 
 ## Serial console
 
-The USB-C port carries a line console that also sends files to the card.
-Each reply ends with a line starting `OK` or `ERR`.
+The USB-C port carries a line console that also sends files to the card
+or the drive. Each reply ends with a line starting `OK` or `ERR`. Paths
+start with the volume: `/sd/...` for the card, `/usb/...` for the drive.
 
     version              Duplicitous <version>
     whoami               M5Stack Tab5
-    ls [dir]             D <name> | F <size> <name>, then OK
-    df                   OK total=<bytes> free=<bytes>
+    ls [dir]             D <name> | F <size> <name>, then OK; with no
+                         dir, the mounted volumes (D sd, D usb)
+    df [vol]             OK total=<bytes> free=<bytes>, of /sd unless /usb
     put <size> <path>    READY <size>; then <size> raw bytes in 2048-byte
                          chunks (the last shorter), waiting after each for
                          ACK <received>/<size>; ends OK <size>
@@ -76,8 +81,7 @@ Each reply ends with a line starting `OK` or `ERR`.
 The `put` framing is the one Launcher's `flash firmware` uses: one chunk
 in flight, so a slow driver cannot stall the stream. A file is written
 as `<path>.part` and renamed when complete; 5 s with no bytes gives ERR
-and removes it. Paths are relative to the card's root, and the size
-comes first so a path may contain spaces.
+and removes it. The size comes first so a path may contain spaces.
 
 ## Building
 
@@ -87,11 +91,25 @@ ESP-IDF 5.4.2 or later:
     idf.py build
     idf.py merge-bin -o duplicitous_standalone.bin
 
-The panel, backlight, text, IO expanders and touch come from
+The panel, backlight, text, IO expanders, touch and USB host come from
 [feckless-graphics-handler-for-m5tab5](https://github.com/Sudrien/feckless-graphics-handler-for-m5tab5)
 and
-[feckless-drivers-for-m5tab5](https://github.com/Sudrien/feckless-drivers-for-m5tab5),
-pinned in `main/idf_component.yml`. The panel is the rev 2 Tab5's
+[feckless-drivers-for-m5tab5](https://github.com/Sudrien/feckless-drivers-for-m5tab5);
+the card and the drive from
+[feckless-storage-handler-for-m5tab5](https://github.com/Sudrien/feckless-storage-handler-for-m5tab5).
+All are pinned in `main/idf_component.yml`.
+
+exFAT is built in: `cmake/exfat.cmake` runs `tools/enable_exfat.sh` at
+configure time, which copies this IDF's fatfs into `components/fatfs`
+with exFAT turned on (both from defeatist-music-player-for-m5tab5). Set
+`TAB5_NO_EXFAT` in the environment to build FAT32 only.
+
+Licences other than MIT: `components/usb_host_msc` is Espressif's
+esp-usb MSC driver, Apache-2.0, vendored from
+defeatist-music-player-for-m5tab5 with its Tab5 DMA fixes (its own
+licence file and change notes inside). The exFAT fatfs is IDF's
+component (Apache-2.0) around ChaN's FatFs (a BSD-style notice that
+travels with it). Ark12 in the graphics handler is SIL OFL-1.1. The panel is the rev 2 Tab5's
 ST7121; a rev 1 board's ILI9881C stays dark.
 
 MIT License; see [LICENSE](../LICENSE).

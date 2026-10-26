@@ -20,6 +20,8 @@
 #include "freertos/semphr.h"
 #include "nvs.h"
 
+#include "vol.h"
+
 static const char *TAG = "install";
 
 #define NVS_NS      "duplicitous"
@@ -69,11 +71,13 @@ esp_err_t install_from_file(const char *path, install_progress_fn cb, void *ctx,
     uint8_t *buf = NULL;
     esp_ota_handle_t ota = 0;
     bool ota_open = false;
+    storage_id_t vid = STORAGE_COUNT;
     err[0] = '\0';
 
     work_lock();
     const esp_partition_t *dest = app2();
     if (!dest) FAIL("no app2 partition in this table");
+    if (!vol_hold(path, &vid)) FAIL("%s is not on a mounted card or drive", path);
 
     struct stat st;
     if (stat(path, &st) != 0) FAIL("cannot read %s", path);
@@ -151,6 +155,7 @@ out:
     if (ota_open) esp_ota_abort(ota);
     free(buf);
     if (f) fclose(f);
+    vol_release(vid);
     work_unlock();
     if (ret != ESP_OK) ESP_LOGW(TAG, "%s: %s", path, err);
     return ret;
