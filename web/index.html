@@ -39,23 +39,7 @@ page asks you to confirm before anything is written.</p>
 <progress id="progress" value="0" max="1" hidden></progress>
 <pre id="flashinfo" class="muted">Choose a firmware first.</pre>
 
-<section id="launcherstep" hidden>
-<h2>3. Check that Launcher answers</h2>
-<p>Launcher keeps a command console on the same USB-C port. This sends it
-<code>version</code>, <code>whoami</code> and <code>partitions</code> --
-all three only read -- and checks the replies, so you know firmware can
-be sent to it this way. Give a freshly flashed Launcher a few seconds to
-start; this waits up to 20. It runs by itself after Launcher is flashed.</p>
-<button id="launchertest" disabled>Talk to Launcher</button>
-<button id="launcherreboot" disabled>Restart Launcher, then talk to it</button>
-<p class="muted">If Launcher answers but the screen stays dark, restart it:
-on its first boot after other firmware, Launcher can miss the Tab5's display
-(<code>M5GFX: M5Tab5 display panel was not detected</code>), and finds it
-on the next one.</p>
-<pre id="launcherinfo" class="muted">Not checked yet.</pre>
-</section>
-
-<h2>4. Send to the Tab5's card or USB drive</h2>
+<h2>3. Send to the Tab5's card or USB drive</h2>
 <p>With <a href="https://github.com/Sudrien/duplicitous-for-m5tab5/tree/main/m5tab5">Duplicitous</a>
 running on the Tab5, this puts files on its microSD card or USB drive over the
 same USB-C port -- the firmware from step 1 instead of flashing it, or files
@@ -193,17 +177,11 @@ function buttons() {
   $('chip').disabled = !port || listening || busy;
   $('pick').disabled = !serial || busy || listening;
   $('flash').disabled = !serial || listening || busy || !chosenLabel();
-  $('launchertest').disabled = !serial || listening || busy;
-  $('launcherreboot').disabled = !serial || listening || busy;
   $('send').disabled = !serial || listening || busy;
   $('volcheck').disabled = !serial || listening || busy;
   $('porttest').disabled = !serial || listening || busy;
-  // step 3 is for Launcher: shown once it is flashed, or while it is chosen
-  $('launcherstep').hidden = !(launcherFlashed || isLauncher(chosenLabel()));
 }
 
-let launcherFlashed = false;
-const isLauncher = label => /launcher/i.test(label || '');
 
 // What the chosen firmware is called, or null if none is ready to flash.
 function chosenLabel() {
@@ -591,9 +569,7 @@ $('flash').onclick = async () => {
       calculateMD5Hash: image => SparkMD5.ArrayBuffer.hash(image.slice().buffer),
     });
     flashed = true;
-    say('flashinfo', 'Wrote and checked ' + img.name + ' (' + img.data.length + ' bytes, MD5 matched). Restarting the Tab5 into it.'
-      + (isLauncher(label) ? '\nNext, step 3 checks that Launcher answers.' : ''), 'ok');
-    if (isLauncher(label)) { launcherFlashed = true; say('launcherinfo', 'Not checked yet.', 'muted'); }
+    say('flashinfo', 'Wrote and checked ' + img.name + ' (' + img.data.length + ' bytes, MD5 matched). Restarting the Tab5 into it.', 'ok');
   } catch (e) {
     say('flashinfo', (writing ? 'Flashing stopped: ' : '') + (e.name && e.name !== 'Error' ? e.name + ': ' : '') + e.message
       + (writing && !flashed ? '\nIf it stopped partway, the Tab5 may not boot until it is flashed again; it can still get into the bootloader.' : ''), 'bad');
@@ -605,24 +581,17 @@ $('flash').onclick = async () => {
   if (loader) await afterReset(old, since, 'flashinfo');
   busy = false;
   buttons();
-  // Launcher just went on: check its console straight away
-  if (flashed && isLauncher(label) && port) await launcherCheck({});
 };
 
-// ---- Launcher's console --------------------------------------------------
+// ---- Duplicitous's console -----------------------------------------------
 
-// Launcher (github.com/bmorcelli/Launcher, src/serial_console.cpp) reads
-// one command per line on this port from early in its boot, and answers
-// "version" with "Launcher <version>" and "whoami" with the device name,
-// "M5Stack Tab5" on this build; "reboot" restarts it. While it waits to
-// boot an installed app it also prints "Press the button to enter the
-// Launcher!" every half second, which is not an answer.
-const BANNER = /^Press the button to enter the Launcher!$/;
+// Duplicitous (m5tab5/ in this repository) reads one command per line on
+// this port; see m5tab5/main/console.h for the commands.
 
 // The port to talk on: the one in hand, else the one Espressif port the
 // browser already allows (the Tab5 back after a reset), else the prompt
 // -- which only works straight from a click.
-async function launcherPort() {
+async function tab5Port() {
   if (port) return port;
   try {
     const ports = (await navigator.serial.getPorts()).filter(p => p.getInfo().usbVendorId === ESPRESSIF_VID);
@@ -734,7 +703,7 @@ async function consoleSession(p) {
     const from = s.lines.length;
     await s.send(cmd);
     for (const end = Date.now() + ms; Date.now() < end && !s.lost; await sleep(50)) {
-      const hit = s.lines.slice(from).find(l => l && !BANNER.test(l) && re.test(l));
+      const hit = s.lines.slice(from).find(l => l && re.test(l));
       if (hit) return hit;
     }
     return null;
@@ -749,71 +718,7 @@ async function consoleSession(p) {
   return s;
 }
 
-// Step 3. With reboot, first restart Launcher with its "reboot" command
-// and wait for the Tab5 to come back -- the fix for a dark screen.
-async function launcherCheck({ reboot = false }) {
-  busy = true; buttons();
-  port = await launcherPort();
-  if (!port) { say('launcherinfo', 'No port chosen.', 'bad'); busy = false; buttons(); return; }
-
-  outHeading(reboot ? 'Restarting Launcher, then talking to it' : 'Talking to Launcher');
-  let s = null, opened = Date.now();
-  try {
-    if (reboot) {
-      say('launcherinfo', 'Restarting Launcher...', 'muted');
-      const since = Date.now();
-      s = await consoleSession(port);
-      await s.send('reboot');
-      for (const end = Date.now() + 5000; Date.now() < end && !s.lost; ) await sleep(100);
-      await s.close(); s = null;
-      outWrite('\n--- restarted; waiting for the Tab5 to come back ---\n');
-      say('launcherinfo', 'Waiting for the Tab5 to come back...', 'muted');
-      if (!await afterReset(port, since, 'launcherinfo')) throw new Error('The Tab5 did not come back within 2 minutes after "reboot".');
-    }
-
-    say('launcherinfo', 'Opening the port...', 'muted');
-    opened = Date.now();
-    s = await consoleSession(port);
-    let version = null;
-    for (const end = Date.now() + 20000; !version && Date.now() < end && !s.lost; ) {
-      say('launcherinfo', 'Asking for its version...', 'muted');
-      version = await s.ask('version', /^Launcher\s+\S/, 1500);
-    }
-    if (s.lost) throw s.lost;
-    if (!version) throw new Error('No answer to "version" in 20 seconds. Is Launcher on the Tab5\'s screen? '
-      + 'An app it started has a console of its own, or none.');
-
-    const who = await s.ask('whoami', /./, 2000);
-
-    say('launcherinfo', 'Reading its partition table...', 'muted');
-    const from = s.lines.length;
-    await s.send('partitions');
-    await sleep(1500);
-    const table = s.lines.slice(from).filter(l => l && !BANNER.test(l));
-
-    const tab5 = who === 'M5Stack Tab5';
-    say('launcherinfo', [
-      'Launcher answers on this port.' + (reboot ? ' (restarted first)' : ''),
-      'version:    ' + version,
-      'whoami:     ' + (who || 'no answer') + (who && !tab5 ? '  (not "M5Stack Tab5": a build for another board?)' : ''),
-      'partitions:', ...table.map(l => '  ' + l),
-      '',
-      'Screen still dark? Restart Launcher.',
-    ].join('\n'), tab5 ? 'ok' : 'bad');
-  } catch (e) {
-    say('launcherinfo', 'Could not talk to Launcher: ' + (e.name && e.name !== 'Error' ? e.name + ': ' : '') + e.message
-      + (s && s.lost ? '\nThe port went away -- the Tab5 may have reset. Try again.' : ''), 'bad');
-  }
-  const gone = s && s.lost;
-  if (s) await s.close();
-  // nothing here resets the Tab5 unless asked to, so the port stays
-  // chosen -- unless it went away; then wait for it to come back
-  if (gone) await afterReset(port, opened, 'launcherinfo');
-  busy = false;
-  buttons();
-}
-
-// ---- step 4: to the card or drive, through Duplicitous ---------------------
+// ---- step 3: to the card or drive, through Duplicitous ---------------------
 
 // Duplicitous (m5tab5/ in this repository) answers "version" with
 // "Duplicitous <version>", and takes files by YMODEM after
@@ -847,7 +752,7 @@ const kb = n => (n / 1024).toFixed(0) + ' KB';
 $('send').onclick = async () => {
   busy = true; buttons();
   // the prompt first, while the click still counts
-  port = await launcherPort();
+  port = await tab5Port();
   if (!port) { say('sendinfo', 'No port chosen.', 'bad'); busy = false; buttons(); return; }
   const bar = $('sendprogress');
   const dir = sendDir();
@@ -991,7 +896,10 @@ async function portIsOurs(s, rounds = 8) {
 const PORT_SHARED = 'Something else on this computer seems to have the Tab5\'s port open -- a terminal, '
   + 'idf.py monitor, another browser tab -- and is taking part of what the Tab5 sends. Close it, then try again.';
 
-// Ask "version" until Duplicitous (or Launcher) answers, for up to 20 s.
+// Ask "version" until Duplicitous answers, for up to 20 s. Launcher
+// (bmorcelli's, which this page no longer offers) answers "version" too
+// but cannot take files this way; its answer is let through so the
+// caller can say so.
 // Duplicitous ends its answer with a line "OK"; an OK that arrives with
 // no whole version line before it means bytes went missing between them
 // -- another program reading the port, taking them a few at a time, as
@@ -1015,7 +923,7 @@ async function askVersion(s, statusId) {
 // "Test the port", by itself.
 $('porttest').onclick = async () => {
   busy = true; buttons();
-  port = await launcherPort();
+  port = await tab5Port();
   if (!port) { say('vols', 'No port chosen.', 'bad'); busy = false; buttons(); return; }
   outHeading('Testing that nothing else is reading the port');
   let s = null, opened = Date.now();
@@ -1040,7 +948,7 @@ $('porttest').onclick = async () => {
 // "Check storage": ask Duplicitous what is in, and close again.
 $('volcheck').onclick = async () => {
   busy = true; buttons();
-  port = await launcherPort();
+  port = await tab5Port();
   if (!port) { say('vols', 'No port chosen.', 'bad'); busy = false; buttons(); return; }
   outHeading('Asking the Tab5 what storage it has');
   let s = null, opened = Date.now();
@@ -1060,8 +968,6 @@ $('volcheck').onclick = async () => {
   buttons();
 };
 
-$('launchertest').onclick = () => launcherCheck({});
-$('launcherreboot').onclick = () => launcherCheck({ reboot: true });
 </script>
 </body>
 </html>

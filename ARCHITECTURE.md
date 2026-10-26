@@ -191,3 +191,25 @@ the later one is what happened.
   `-f` still refuses for terminals. In headless Chromium: two files
   sent, sent again (nothing sent), one changed (only it sent, and the
   new one on the volume).
+- **0021** Launcher off the flasher. bmorcelli/Launcher takes files only
+  by its own `flash firmware <name> <size>` framing (READY, raw bytes,
+  ACK per 2 KB), not by `rb`/YMODEM, `sha256` or `echo`, so step 3 (talk
+  to Launcher) and the pinned download in pages.yml went; step 4 is now
+  step 3. A Tab5 still running Launcher answers `version`, and the page
+  says it cannot take files. What was learned from it, kept here from
+  the CLAUDE.md notes this removed: Launcher 2.9.1's
+  `Launcher-m5stack-tab5.bin` is a whole image from 0x0 (0xFF to 0x2000,
+  chip ID 18), 1603072 bytes, SHA-256 506b02a4...b0a8, its table
+  nvs/otadata/app0 at 0x10000/coredump, and it reworks the partition
+  table as it installs apps; its console (src/serial_console.cpp) is
+  always on, prints "Press the button to enter the Launcher!" every
+  500 ms while waiting to boot an app, and answers `version` with
+  "Launcher <version>". On hardware, its first boot after other
+  firmware logged `E (278) M5GFX: M5Tab5 display panel was not detected`
+  and ran dark until the next reset -- likely the I/O expanders keeping
+  the previous firmware's state through a chip-only reset.
+  Duplicitous was already in deps.yml's list (since 0002); with
+  m5tab5/dependencies.lock now committed, `tools/depcheck.py m5tab5`
+  reads it: the feckless components checked against their tags here,
+  the registry ones unreachable from a session. The vendored
+  `components/usb_host_msc` is not in the lock, so it is not checked.

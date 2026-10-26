@@ -81,19 +81,6 @@ jobs:
               printf '%s\t%s\t%s\t%s\n' "$repo" "$tag" "${f#_site/firmware/}" "Sudrien/$repo" >> _site/firmware/list.tsv
             done
           done
-          # Firmware from elsewhere, pinned to a release: "repo tag file".
-          # Each must be a whole image written from 0x0 like the
-          # _standalone.bins (the page checks this before flashing).
-          while read -r repo tag file; do
-            name=${repo#*/}
-            mkdir -p "_site/firmware/$name"
-            if ! gh release download "$tag" -R "$repo" -p "$file" -D "_site/firmware/$name"; then
-              echo "::warning::$repo $tag: $file not downloaded"; rm -rf "_site/firmware/$name"; continue
-            fi
-            printf '%s\t%s\t%s\t%s\n' "$name" "$tag" "$name/$file" "$repo" >> _site/firmware/list.tsv
-          done <<'EOF'
-          bmorcelli/Launcher 2.9.1 Launcher-m5stack-tab5.bin
-          EOF
           python3 - <<'PY'
           import hashlib, json, os, urllib.parse
           out = []
