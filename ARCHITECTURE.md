@@ -240,3 +240,9 @@ the later one is what happened.
   and the component manager off, with the drivers' and graphics
   handler's unreleased commits; the image is 1,269 KB, inside the
   launcher's 2 MB. Not on a Tab5.
+- **0024** m5tab5: feckless-abi v0.2.1. 0023's v0.2.0 named
+  feckless-graphics-handler v0.2.8, which was tagged without the change
+  that lets lcd_init() and gfx_init() run a second time: a .elf app
+  would have stopped at its lcd_init(). v0.2.1 names v0.2.9, which has
+  it. Touches main/idf_component.yml: the lock re-resolves (0023's was
+  not committed; this one should be). Not built.
