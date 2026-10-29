@@ -220,3 +220,23 @@ the later one is what happened.
   conversation with the console under web/; and "Planned, not built" --
   first, "flash standalone" and "flash with the Duplicitous launcher"
   side by side -- with what has not yet been seen on a Tab5.
+- **0023** m5tab5: .elf apps, run without a restart. Built against
+  feckless-abi-for-m5tab5 v0.2.0, which now pins feckless_drivers and
+  feckless_graphics_handler for this firmware (main's manifest names it
+  in their place). The menu lists `.elf` files beside `.bin`s, in green,
+  if the header says 32-bit RISC-V shared object, 4 MB or less
+  (`elfrun.c`). Tapping one asks "Run?", reads it into PSRAM, and hands
+  it to `feckless_abi_run()` on the main task. The app's `app_main()`
+  runs there and initialises the board again, which the ABI's v0.5.10
+  and v0.2.8 libraries allow. Its USB classes register late, and the
+  port's power is cycled so the card reader and drive enumerate again
+  with them. The console and storage keep running underneath. An ELF
+  that will not load (a symbol outside the ABI, another ABI version)
+  brings the menu back with the log naming the symbol; an app whose
+  `app_main()` returns leaves the board to its own tasks, and the main
+  task deletes itself. sdkconfig.defaults gains esp_elf's PSRAM load,
+  memory protection off, the 256 KB L2 and `CONFIG_UAC_FREQ_NUM_MAX=8`
+  for an app's USB microphone: `rm sdkconfig`. Built with ESP-IDF 5.5.1
+  and the component manager off, with the drivers' and graphics
+  handler's unreleased commits; the image is 1,269 KB, inside the
+  launcher's 2 MB. Not on a Tab5.

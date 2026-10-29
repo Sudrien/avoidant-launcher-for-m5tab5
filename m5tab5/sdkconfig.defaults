@@ -52,3 +52,17 @@ CONFIG_USB_HOST_CONTROL_TRANSFER_MAX_SIZE=1024
 
 CONFIG_FREERTOS_HZ=1000
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# 0023: .elf apps, run with feckless-abi-for-m5tab5's esp_elf loader.
+# esp_elf runs them from PSRAM; memory protection off, as elf_loader's
+# PSRAM examples have it (feckless_abi fails the build otherwise). The
+# 256 KB L2 for code running from PSRAM, as Lothesome has it.
+CONFIG_ELF_LOADER_LOAD_PSRAM=y
+CONFIG_ESP_SYSTEM_MEMPROT_FEATURE=n
+CONFIG_CACHE_L2_CACHE_256KB=y
+CONFIG_CACHE_L2_CACHE_LINE_128B=y
+
+# 0023: an app's USB microphone through this firmware's UAC driver: with
+# the default 4, one that lists five sample rates loses the fifth
+# (Lothesome's 0027, the Blue Snowball's 48 kHz).
+CONFIG_UAC_FREQ_NUM_MAX=8

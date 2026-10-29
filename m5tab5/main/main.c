@@ -6,7 +6,8 @@
  * At power-on, if app2 holds an app, it boots after a short countdown
  * unless the screen is touched. Otherwise, or after a touch, the card and
  * the drive are listed, then their folders and .bin files; tapping a .bin asks, writes and
- * boots it. The console on the USB-C port (console.h) does the same
+ * boots it. An .elf -- an app built against feckless-abi-for-m5tab5 --
+ * is run instead, on this board as it is, without a restart (0023). The console on the USB-C port (console.h) does the same
  * from a computer, and sends files to either.
  *
  * SPDX-License-Identifier: MIT
@@ -18,6 +19,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_system.h"
@@ -36,6 +38,8 @@
 #include "touch.h"
 
 #include "console.h"
+#include "elfrun.h"
+#include "feckless_abi.h"
 #include "install.h"
 #include "vol.h"
 #include "xfer.h"
@@ -73,6 +77,7 @@ static const char *TAG = "duplicitous";
 #define C_DIM       RGB(140, 145, 160)
 #define C_DIR       RGB(120, 190, 255)
 #define C_BIN       RGB(255, 210, 120)
+#define C_ELF       RGB(170, 225, 140)     /* 0023: runs, does not install */
 #define C_RULE      RGB(44, 48, 60)
 #define C_BTN       RGB(52, 58, 76)
 #define C_GO        RGB(40, 130, 70)
@@ -162,6 +167,12 @@ static bool is_bin(const char *n)
     return l > 4 && !strcasecmp(n + l - 4, ".bin");
 }
 
+static bool is_elf(const char *n)
+{
+    size_t l = strlen(n);
+    return l > 4 && !strcasecmp(n + l - 4, ".elf");
+}
+
 static int ent_cmp(const void *a, const void *b)
 {
     const entry_t *x = a, *y = b;
@@ -223,7 +234,7 @@ static void scan(void)
         struct dirent *e;
         while ((e = readdir(d)) != NULL) {
             bool dir = e->d_type == DT_DIR;
-            if (e->d_name[0] == '.' || (!dir && !is_bin(e->d_name))) continue;
+            if (e->d_name[0] == '.' || (!dir && !is_bin(e->d_name) && !is_elf(e->d_name))) continue;
             if (!strcasecmp(e->d_name, "System Volume Information")) continue;
             long size = -1;
             if (!dir) {
@@ -235,7 +246,14 @@ static void scan(void)
                  * saved as .bin, or another chip's firmware, is left out
                  * here rather than refused after "Install?" */
                 char why[96];
-                if (!install_probe(full, why, sizeof why)) {
+                if (is_elf(e->d_name)) {
+                    /* 0023: an .elf that is not a Tab5 app is only logged;
+                     * s_hidden counts .bins */
+                    if (!elfrun_probe(full, why, sizeof why)) {
+                        PHASE("not listed: %s (%s)", e->d_name, why);
+                        continue;
+                    }
+                } else if (!install_probe(full, why, sizeof why)) {
                     PHASE("not listed: %s (%s)", e->d_name, why);
                     s_hidden++;
                     continue;
@@ -317,6 +335,67 @@ static void install_and_boot(const entry_t *e)
     esp_err_t be = install_boot();
     snprintf(err, sizeof err, "Installed, but could not boot it: %s", esp_err_to_name(be));
     message("Not booted", err, C_BAD);
+}
+
+/* ---- run an .elf (0023) -------------------------------------------------- */
+
+/*
+ * Read it into PSRAM and hand it to feckless_abi_run(), on this task: the
+ * app's app_main() runs here, with the main task's stack. It finds the
+ * board up -- the panel, touch, the USB port with the card's and drive's
+ * mass storage on it -- and initialises it again as it would at boot,
+ * which feckless-abi v0.2.0's libraries allow. The console and storage
+ * keep running under it.
+ *
+ * If the ELF will not load (a symbol this ABI lacks, another ABI
+ * version), nothing of it has run and the menu comes back. If its
+ * app_main() returns, its own tasks have the board: this task goes.
+ */
+static void run_elf(const entry_t *e)
+{
+    char path[800], size[24];
+    snprintf(path, sizeof path, "%s/%s", s_dir, e->name);
+    fmt_size(size, sizeof size, e->size);
+
+    gfx_fill_rect(0, 0, W, H, C_BG);
+    header("Run?", path);
+    text_centred(H / 2 - 100, e->name, C_ELF);
+    text_centred(H / 2 - 30, size, C_DIM);
+    text_centred(H / 2 + 40, "Runs now, from the card. app2 is kept.", C_DIM);
+    char abi[32];
+    snprintf(abi, sizeof abi, "feckless ABI v%d", FECKLESS_ABI_VERSION);
+    text_centred(H / 2 + 100, abi, C_DIM);
+    const int bw = (W - 3 * PAD) / 2, by = H - FOOT_H + 20, bh = FOOT_H - 40;
+    button(PAD, by, bw, bh, "Cancel", C_BTN);
+    button(2 * PAD + bw, by, bw, bh, "Run", C_GO);
+    show();
+    int x, y;
+    for (;;) {
+        wait_tap(&x, &y, -1);
+        if (hit(x, y, PAD, by, bw, bh)) return;
+        if (hit(x, y, 2 * PAD + bw, by, bw, bh)) break;
+    }
+
+    gfx_fill_rect(0, 0, W, H, C_BG);
+    header("Loading", path);
+    show();
+    uint8_t *image = NULL;
+    size_t len = 0;
+    char err[128];
+    if (elfrun_load(path, &image, &len, draw_progress, (void *)e->name, err, sizeof err) != ESP_OK) {
+        message("Not run", err, C_BAD);
+        return;
+    }
+
+    ESP_LOGI(TAG, "running %s (%u bytes)", path, (unsigned)len);
+    int ret = feckless_abi_run(image, len);
+    if (ret == 0) {
+        ESP_LOGI(TAG, "%s: app_main() returned; its tasks have the board", e->name);
+        vTaskDelete(NULL);
+    }
+    heap_caps_free(image);
+    snprintf(err, sizeof err, "It would not load (%d). The log names the symbol it lacked.", ret);
+    message("Not run", err, C_BAD);
 }
 
 /* ---- the menu ------------------------------------------------------------ */
@@ -434,7 +513,8 @@ static void menu(void)
                     char sz[24];
                     fmt_size(sz, sizeof sz, e->size);
                     int sw = gfx_text_w(sz, SCALE);
-                    text(PAD, y + (ROW_H - TEXT_H) / 2, e->name, W - 3 * PAD - sw, C_BIN);
+                    text(PAD, y + (ROW_H - TEXT_H) / 2, e->name, W - 3 * PAD - sw,
+                         is_elf(e->name) ? C_ELF : C_BIN);
                     text(W - PAD - sw, y + (ROW_H - TEXT_H) / 2, sz, sw, C_DIM);
                 }
             }
@@ -490,6 +570,9 @@ static void menu(void)
                     snprintf(s_dir + l, sizeof s_dir - l, "/%s", s_ents[i].name);
                     rescan = true;
                 }
+            } else if (is_elf(s_ents[i].name)) {
+                run_elf(&s_ents[i]);
+                rescan = true;
             } else {
                 install_and_boot(&s_ents[i]);
                 rescan = true;
