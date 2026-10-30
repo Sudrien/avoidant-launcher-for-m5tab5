@@ -246,3 +246,10 @@ the later one is what happened.
   would have stopped at its lcd_init(). v0.2.1 names v0.2.9, which has
   it. Touches main/idf_component.yml: the lock re-resolves (0023's was
   not committed; this one should be). Not built.
+- **0025** m5tab5: feckless-abi v0.2.2. *0024 on a Tab5*: the card
+  mounted, Lothesome's .elf listed and ran, and esp_elf refused it --
+  `E ELF: Can't find common feckless_abi_v1`, `esp_elf_relocate: -88`.
+  The ABI's table registered the version symbol under the name
+  "FECKLESS_ABI_SYMBOL" (an unexpanded stringize); v0.2.2 registers it
+  as feckless_abi_v1. The menu came back as it should after a failed
+  load. Touches main/idf_component.yml: commit the lock. Not built.
