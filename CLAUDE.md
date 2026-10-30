@@ -145,6 +145,8 @@ Firefox (151+, desktop) has been tested against a real Tab5: the port prompt was
 
 ### What gets flashed
 
+A release may also carry an `.elf` app for Duplicitous (0029): pages.yml lists it if it is a RISC-V shared object naming a `feckless_abi_v<n>`, and step 3 sends it to the card after checking it against the ABI the Tab5's Duplicitous reports on `version`'s second line. Nothing flashes an `.elf`.
+
 Each project's release has two .bins: `..._standalone.bin`, from `idf.py merge-bin`, written at 0x0, and the app alone, for the app partition. The page flashes only the standalone one, checked first: on the P4 the bootloader is at 0x2000, so the file is 0x2000 bytes of 0xFF and then an image header (0xE9, chip ID 18 at byte 12). An app-only .bin starts with 0xE9 and is refused.
 
 The merged image runs from 0x0 to the end of the app, so it overwrites NVS (0x9000) -- settings are lost -- and stops short of the FAT partitions (0x610000 in the OTA layouts), which survive. The projects use their own partition layouts (two OTA slots plus FAT, factory only, and Duplicitous's factory + app2 + FAT); the image carries its own table, so switching between them is fine.

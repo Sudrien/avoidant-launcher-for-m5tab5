@@ -5,6 +5,7 @@
  */
 #include "console.h"
 #include "settings.h"     /* 0028 */
+#include "feckless_abi.h" /* 0029 */
 
 #include <dirent.h>
 #include <errno.h>
@@ -350,6 +351,7 @@ static void handle(char *line)
 
     if (!strcasecmp(cmd, "version")) {
         reply("%s", duplicitous_title());
+        reply("ABI feckless v%d", FECKLESS_ABI_VERSION);    /* 0029 */
         reply("OK");
         return;
     }

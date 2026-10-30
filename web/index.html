@@ -43,12 +43,21 @@ page asks you to confirm before anything is written.</p>
 <p>With <a href="https://github.com/Sudrien/duplicitous-for-m5tab5/tree/main/m5tab5">Duplicitous</a>
 running on the Tab5, this puts files on its microSD card or USB drive over the
 same USB-C port -- the firmware from step 1 instead of flashing it, or files
-from this computer -- then reads each one back to check it, and can install a
-<code>.bin</code> and boot it. Duplicitous shows what is being written while it
+from this computer, or an app it runs -- then reads each one back to check it,
+and can install a <code>.bin</code> and boot it. An app is an <code>.elf</code>
+built against the <a href="https://github.com/Sudrien/feckless-abi-for-m5tab5">feckless
+ABI</a>: Duplicitous lists it in green and runs it from the card, without
+installing it. Duplicitous shows what is being written while it
 happens.</p>
 <label><input type="radio" name="sendsrc" value="fw" checked> The firmware chosen in step 1</label>
 <label><input type="radio" name="sendsrc" value="files"> Files from this computer:
   <input type="file" id="sendfiles" multiple></label>
+<label><input type="radio" name="sendsrc" value="app"> An app for Duplicitous:
+  <select id="sendapp"><option value="">none published</option></select></label>
+<p class="muted">An <code>.elf</code> is checked before it is sent: it must be an
+app (built with <code>feckless_abi_elf()</code>, not an IDF build's own
+<code>build/&lt;project&gt;.elf</code>) and built for the ABI this Duplicitous
+runs.</p>
 <p>On the Tab5: <span id="vols" class="muted">not checked yet</span>
   <button id="volcheck" disabled>Check storage</button>
   <button id="porttest" disabled>Test the port</button></p>
@@ -435,12 +444,17 @@ $('chip').onclick = async () => {
 // downloads from github.com have no CORS headers, so the page cannot
 // fetch them itself.
 let published = [];
+// 0029: and the .elf apps, for step 3: { ..., kind: 'elf', abi }
+let apps = [];
 (async () => {
   const box = $('firmware');
   try {
     const res = await fetch('firmware/index.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error(res.status);
-    published = await res.json();
+    const all = await res.json();
+    published = all.filter(f => f.kind !== 'elf');
+    apps = all.filter(f => f.kind === 'elf');
+    showApps();
   } catch (e) {
     box.textContent = 'No published firmware here (a local copy of the page?). A file from this computer still works.';
     return;
@@ -720,6 +734,63 @@ async function consoleSession(p) {
 
 // ---- step 3: to the card or drive, through Duplicitous ---------------------
 
+// 0029: the published apps, in step 3's list.
+function showApps() {
+  const sel = $('sendapp');
+  if (!apps.length) return;
+  sel.replaceChildren(...apps.map((f, i) => {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = f.project + ' ' + f.tag + ' (' + kb(f.size) + ', ABI v' + f.abi + ')';
+    return o;
+  }));
+}
+$('sendapp').onchange = () => {
+  document.querySelector('input[name=sendsrc][value=app]').checked = true;
+  appChosen();
+};
+document.addEventListener('change', e => {
+  if (e.target.name === 'sendsrc' && e.target.value === 'app') appChosen();
+});
+// Apps to a folder of their own, unless one was typed.
+function appChosen() {
+  if ($('senddir').value.trim() === 'bins') $('senddir').value = 'apps';
+}
+
+// 0029: the feckless ABI an .elf was built for, or null if it is not an
+// app Duplicitous runs. The same test as Duplicitous's elfrun.c and
+// pages.yml: a 32-bit little-endian RISC-V shared object (an IDF build's
+// own .elf is an executable, and may name the symbol as well), and the
+// feckless_abi_vN it refers to.
+function elfAbi(d) {
+  const u16 = i => d[i] | (d[i + 1] << 8);
+  if (d.length < 20 || d[0] !== 0x7f || d[1] !== 0x45 || d[2] !== 0x4c || d[3] !== 0x46
+      || d[4] !== 1 || d[5] !== 1 || u16(16) !== 3 || u16(18) !== 243) return null;
+  const pat = new TextEncoder().encode('feckless_abi_v');
+  next: for (let i = 0; i + pat.length < d.length; i++) {
+    for (let j = 0; j < pat.length; j++) if (d[i + j] !== pat[j]) continue next;
+    let k = i + pat.length, n = '';
+    while (k < d.length && d[k] >= 0x30 && d[k] <= 0x39) n += String.fromCharCode(d[k++]);
+    if (n && d[k] === 0) return +n;
+  }
+  return null;
+}
+
+// 0029: the ABI Duplicitous runs, from the "ABI feckless v<n>" line its
+// "version" answer has after the title; null from one older than that.
+async function launcherAbi(s, version) {
+  for (const end = Date.now() + 1500; Date.now() < end; ) {
+    const from = s.lines.lastIndexOf(version);
+    for (const l of s.lines.slice(from + 1)) {
+      const m = /^ABI feckless v(\d+)$/.exec(l);
+      if (m) return +m[1];
+      if (l === 'OK') return null;
+    }
+    await new Promise(r => setTimeout(r, 50));
+  }
+  return null;
+}
+
 // Duplicitous (m5tab5/ in this repository) answers "version" with
 // "Duplicitous <version>", and takes files by YMODEM after
 // "rb [-f] [-g] <dir>" (m5tab5/main/console.h). This asks for YMODEM-G:
@@ -733,6 +804,15 @@ async function filesToSend() {
     const img = await chosenImage();
     const name = r.value === 'file' ? $('fwfile').files[0].name : published[+r.value].file;
     return [{ name, data: img.data }];
+  }
+  if (document.querySelector('input[name=sendsrc]:checked').value === 'app') {
+    const a = apps[+$('sendapp').value];
+    if (!a) throw new Error('No app was published with this page. An .elf from this computer still works.');
+    const res = await fetch('firmware/' + a.path, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('Could not fetch ' + a.file + ' (' + res.status + ').');
+    const data = new Uint8Array(await res.arrayBuffer());
+    if (await sha256(data) !== a.sha256) throw new Error(a.file + ' did not arrive whole: its SHA-256 differs.');
+    return [{ name: a.file, data }];
   }
   const list = [...$('sendfiles').files];
   if (!list.length) throw new Error('Choose the files to send.');
@@ -775,6 +855,22 @@ $('send').onclick = async () => {
     if (!/^Duplicitous/.test(version))
       throw new Error('This is ' + version + ', not Duplicitous: it cannot take files this way. Flash Duplicitous in steps 1 and 2.');
     report.push(version);
+
+    // 0029: an .elf is an app Duplicitous can run, for its ABI
+    const elfs = files.filter(f => /\.elf$/i.test(f.name));
+    if (elfs.length) {
+      const runs = await launcherAbi(s, version);
+      for (const f of elfs) {
+        const abi = elfAbi(f.data);
+        if (abi === null)
+          throw new Error(f.name + ' is not an app for Duplicitous: not an ELF built with feckless_abi_elf(). '
+            + 'An IDF build\'s own build/<project>.elf is not one; the app is build/elf/<name>.app.elf, or a release\'s .elf.');
+        if (runs !== null && abi !== runs)
+          throw new Error(f.name + ' is built for feckless ABI v' + abi + '; this Duplicitous runs v' + runs + '.');
+        report.push(f.name + ': feckless ABI v' + abi
+          + (runs === null ? ' (this Duplicitous does not say which it runs: older than its 0029)' : ', as this Duplicitous runs'));
+      }
+    }
 
     // nothing else reading the port, or the transfer would be torn apart
     say('sendinfo', report.join('\n') + '\nTesting the port...', 'muted');

@@ -7,7 +7,8 @@
  * terminal with sz, Tera Term or ExtraPuTTY can send, and so can the web
  * flasher:
  *
- *   version                 "Duplicitous <version>", then OK
+ *   version                 "Duplicitous <version>", "ABI feckless v<n>"
+ *                           (0029: the .elf apps it runs), then OK
  *   whoami                  "M5Stack Tab5", then OK
  *   echo <text>             "ECHO <sha256 of text, 64 hex digits>": a
  *                           host checks no other program on the computer

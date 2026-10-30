@@ -287,3 +287,22 @@ the later one is what happened.
   `===` line gave Duplicitous's version as its own (v0.2.5's fix).
   Built with ESP-IDF 5.5.1 and the component manager off: 1,272 KB, 15
   libraries listed. Not on a Tab5.
+- **0029** web, m5tab5: apps on the flasher. pages.yml fetches each
+  project's newest release's `.elf` beside its `_standalone.bin`, and
+  lists it in firmware/index.json with `kind: elf` and the feckless ABI
+  version it refers to -- if it is an app: a 32-bit RISC-V shared object,
+  as elfrun.c asks, so a debug `build/<project>.elf` is left out with a
+  warning. Step 3 gains a third source, "An app for Duplicitous", which
+  fetches the .elf, checks its SHA-256 against the index and sends it, to
+  `apps` unless another folder was typed. Any .elf sent, published or
+  from the computer, is checked first: an app, and for the ABI the
+  Tab5's Duplicitous runs, which `version` now says on a second line,
+  `ABI feckless v1` (console.h). An older Duplicitous says nothing; the
+  page sends and says so. standards.md describes the optional .elf.
+  Tested: the index script on a release folder holding Lothesome's app
+  ELF, its debug ELF and a .bin (the app listed with abi 1, the debug
+  ELF left out); the page in headless Chromium against that index (step
+  1 the .bin alone, step 3 the app, choosing it moves the folder to
+  `apps`, no page errors); the ABI test on the same three files in
+  Node; the firmware built with ESP-IDF 5.5.1 and the component manager
+  off. Not on a Tab5, and not deployed.

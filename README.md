@@ -20,6 +20,10 @@ serial port, the page asks you to confirm, and
 in Chrome, Edge, and Firefox 151 or later on desktop; Safari has no
 Web Serial.
 
+Step 3 also sends an app -- an `.elf` built against the feckless ABI --
+to the card, for Duplicitous to run without installing it; the page
+lists each project's published one.
+
 The firmware is a standalone image (the `_standalone.bin` each project
 releases, written from 0x0) -- either the newest release of one of the
 Tab5 projects (Duplicitous among them), which the deploy copies into the site daily, or a

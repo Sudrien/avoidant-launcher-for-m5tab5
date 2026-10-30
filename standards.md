@@ -57,6 +57,20 @@ Duplicitous treats it as one of its own.
 
 - **The same list in the documentation.**
 
+## Optional: an app for Duplicitous
+
+A release may also carry one `.elf`: the firmware built as an app for
+Duplicitous, with
+[feckless-abi-for-m5tab5](https://github.com/Sudrien/feckless-abi-for-m5tab5)'s
+`feckless_abi_elf()`, so it runs from the card without being installed.
+The flasher lists it in step 3 and sends it to the card. Lothesome Audio
+Analyzer does this: its workflow attaches `build/elf/<name>.app.elf`
+renamed beside the `.bin`s.
+
+The flasher checks an `.elf` before listing it -- a 32-bit RISC-V
+shared object that refers to a `feckless_abi_v<n>` -- so an IDF build's
+own `build/<project>.elf` attached by mistake is left out with a warning.
+
 ## What inclusion gets you
 
 - **Automatic publishing on the flasher.** Each new release's binaries
