@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 #include "console.h"
+#include "settings.h"     /* 0028 */
 
 #include <dirent.h>
 #include <errno.h>
@@ -465,8 +466,8 @@ esp_err_t console_start(void)
      * it for the port */
     usb_serial_jtag_vfs_use_driver();
     /* only warnings from here on: a log line in the middle of a transfer
-     * is noise a host has to skip */
-    esp_log_level_set("*", ESP_LOG_WARN);
+     * is noise a host has to skip. 0028: or what the settings page set */
+    esp_log_level_set("*", settings_log_level());
     ESP_LOGI(TAG, "ready");
     xTaskCreate(console_task, "console", 8192, NULL, 5, NULL);
     return ESP_OK;

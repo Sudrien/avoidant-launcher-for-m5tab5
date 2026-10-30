@@ -270,3 +270,20 @@ the later one is what happened.
   firmware's table. Nothing here changes: v0.2.4 links apps with
   -Bsymbolic so they make no such relocation, and checks for it. The
   .elf must be rebuilt against v0.2.4. Not built.
+- **0028** m5tab5: the gear, and a settings page under it. A gear at the
+  top right of the menu's header (drawn: a hub, eight teeth and a hole)
+  opens it. First the console log level -- None, Error, Warn, Info,
+  Debug, the one in force lit -- applied at once, kept in NVS
+  (`duplicitous`/`loglevel`, `settings.c`), and set by `console_start()`
+  in place of the fixed WARN; it covers a running .elf app's logs too,
+  and a transfer still silences everything while it runs. Under it the
+  libraries the build was made from, with version and licence:
+  `cmake/libversions.cmake`, Lothesome's, writing libversions.h at
+  configure time from the lock, the vendored `components/` (usb_host_msc
+  1.3.0) and the Ark Pixel font. And feckless-abi v0.2.5, whose apps
+  carry their own esp_app_desc_t. *0027 on a Tab5*: Lothesome's .elf
+  ran from the card under Duplicitous, at 40 fps; only its warnings
+  reached the console (the WARN this patch makes a setting), and its
+  `===` line gave Duplicitous's version as its own (v0.2.5's fix).
+  Built with ESP-IDF 5.5.1 and the component manager off: 1,272 KB, 15
+  libraries listed. Not on a Tab5.

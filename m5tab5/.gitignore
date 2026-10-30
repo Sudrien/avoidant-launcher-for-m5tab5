@@ -8,4 +8,6 @@ managed_components/
 components/fatfs/
 # written by the CI build step
 version.txt
+# cmake -P cmake/libversions.cmake, run on its own
+libversions/
 test/ymodem/rx_host

@@ -42,6 +42,8 @@
 #include "elfrun.h"
 #include "feckless_abi.h"
 #include "install.h"
+#include "libversions.h"     /* 0028: generated, cmake/libversions.cmake */
+#include "settings.h"        /* 0028 */
 #include "vol.h"
 #include "xfer.h"
 
@@ -146,6 +148,96 @@ static void message(const char *title, const char *body, uint16_t c)
     show();
     int x, y;
     do wait_tap(&x, &y, -1); while (!hit(x, y, 0, H - FOOT_H, W, FOOT_H));
+}
+
+/* ---- the gear and its page (0028) -------------------------------------- */
+
+/* The gear, top right of the menu's header: a hub, eight teeth round it
+ * and a hole, drawn rather than a glyph -- the fonts have none. */
+#define GEAR_X      (W - PAD - 34)
+#define GEAR_Y      (HEAD_H / 2)
+
+static void draw_gear(void)
+{
+    for (int i = 0; i < 8; i++) {
+        static const int dx[8] = { 0, 21, 30, 21, 0, -21, -30, -21 };
+        static const int dy[8] = { -30, -21, 0, 21, 30, 21, 0, -21 };
+        gfx_fill_circle(GEAR_X + dx[i], GEAR_Y + dy[i], 8, C_DIM);
+    }
+    gfx_fill_circle(GEAR_X, GEAR_Y, 25, C_DIM);
+    gfx_fill_circle(GEAR_X, GEAR_Y, 10, C_HEAD);
+}
+
+/* Generous: the whole top-right square of the header. */
+static bool gear_hit(int x, int y)
+{
+    return y < HEAD_H && x >= W - HEAD_H;
+}
+
+static const struct { esp_log_level_t level; const char *name; } k_levels[] = {
+    { ESP_LOG_NONE, "None" }, { ESP_LOG_ERROR, "Error" }, { ESP_LOG_WARN, "Warn" },
+    { ESP_LOG_INFO, "Info" }, { ESP_LOG_DEBUG, "Debug" },
+};
+#define N_LEVELS    (int)(sizeof k_levels / sizeof k_levels[0])
+
+/*
+ * The console's log level, five buttons, the one in force lit; and under
+ * it the libraries this build was made from, with their versions and
+ * licences, from libversions.h. A tap on a level applies it at once and
+ * keeps it. Back returns to the menu.
+ */
+static void settings_page(void)
+{
+    const int lscale = SCALE - 1, lh = GFX_GLYPH_H(lscale) + 10;
+    const int bw = (W - (N_LEVELS + 1) * PAD / 2) / N_LEVELS, bh = 80;
+    const int by = HEAD_H + 30 + TEXT_H + 20;
+    const int fy = H - FOOT_H + 20, fh = FOOT_H - 40;
+    for (;;) {
+        const esp_log_level_t cur = settings_log_level();
+        gfx_fill_rect(0, 0, W, H, C_BG);
+        header("Settings", duplicitous_title());
+
+        text(PAD, HEAD_H + 30, "Console log level", W - 2 * PAD, C_TEXT);
+        for (int i = 0; i < N_LEVELS; i++)
+            button(PAD / 2 + i * (bw + PAD / 2), by, bw, bh, k_levels[i].name,
+                   k_levels[i].level == cur ? C_GO : C_BTN);
+        int y = by + bh + 16;
+        gfx_draw_text(PAD, y, "On the USB-C port, Duplicitous's and a running app's.",
+                      lscale, W - 2 * PAD, C_DIM);
+        y += lh;
+        gfx_draw_text(PAD, y, "Off during a transfer, whatever this says.",
+                      lscale, W - 2 * PAD, C_DIM);
+        y += lh + 30;
+
+        gfx_fill_rect(0, y - 16, W, 2, C_RULE);
+        text(PAD, y, "Libraries", W - 2 * PAD, C_TEXT);
+        y += TEXT_H + 16;
+        /* three columns: module, its checkout, its licence */
+        const int cx1 = PAD, cx2 = W * 52 / 100, cx3 = W * 74 / 100;
+        int shown = 0;
+        for (int i = 0; i < LIBVERSIONS_COUNT && y + lh <= fy - 10; i++, shown++, y += lh) {
+            gfx_draw_text(cx1, y, k_libversions[i][0], lscale, cx2 - cx1 - 12, C_TEXT);
+            gfx_draw_text(cx2, y, k_libversions[i][1], lscale, cx3 - cx2 - 12, C_DIM);
+            gfx_draw_text(cx3, y, k_libversions[i][2], lscale, W - PAD - cx3, C_DIM);
+        }
+        if (shown < LIBVERSIONS_COUNT) {
+            char more[32];
+            snprintf(more, sizeof more, "and %d more", LIBVERSIONS_COUNT - shown);
+            gfx_draw_text(cx1, y, more, lscale, W - 2 * PAD, C_DIM);
+        }
+
+        button(PAD, fy, W - 2 * PAD, fh, "Back", C_BTN);
+        show();
+
+        int x, ty;
+        wait_tap(&x, &ty, -1);
+        if (hit(x, ty, 0, H - FOOT_H, W, FOOT_H)) return;
+        for (int i = 0; i < N_LEVELS; i++)
+            if (hit(x, ty, PAD / 2 + i * (bw + PAD / 2), by, bw, bh)) {
+                settings_set_log_level(k_levels[i].level);
+                ESP_LOGW(TAG, "console log level: %s", k_levels[i].name);
+            }
+    }
 }
 
 /* ---- the card listing --------------------------------------------------- */
@@ -488,6 +580,7 @@ static void menu(void)
 
         gfx_fill_rect(0, 0, W, H, C_BG);
         header(duplicitous_title(), s_dir[0] ? s_dir : "microSD and USB");
+        draw_gear();                    /* 0028 */
         for (int r = 0; r < ROWS; r++) {
             int i = page * ROWS + r - extra;
             int y = LIST_Y + r * ROW_H;
@@ -550,6 +643,7 @@ static void menu(void)
 
         int x, y;
         if (!tap_or_change(&x, &y, &gen)) { rescan = true; continue; }
+        if (gear_hit(x, y)) { settings_page(); continue; }     /* 0028 */
         if (y >= by) {
             int b = (x - PAD) / (bw + PAD);
             if (b < 0 || b > 3 || !on[b]) continue;

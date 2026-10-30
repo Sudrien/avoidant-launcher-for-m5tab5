@@ -9,7 +9,7 @@ dependencies:
   # is that ABI.
   feckless_abi:
     git: https://github.com/Sudrien/feckless-abi-for-m5tab5.git
-    version: "v0.2.4"   # 0024: graphics handler v0.2.9; 0025: the version symbol
+    version: "v0.2.5"   # 0024: graphics handler v0.2.9; 0025: the version symbol
   feckless_storage_handler:
     git: https://github.com/Sudrien/feckless-storage-handler-for-m5tab5.git
     version: "v0.1.0"

@@ -10,3 +10,9 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/exfat.cmake)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(duplicitous)
+
+# 0028: libversions.h, the settings page's list of libraries, generated
+# from the lock and components/ when the build is configured. See the file.
+idf_component_get_property(main_lib main COMPONENT_LIB)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/libversions.cmake)
+target_include_directories(${main_lib} PRIVATE "${LIBVERSIONS_DIR}")
