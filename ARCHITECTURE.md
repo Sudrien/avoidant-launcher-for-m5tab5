@@ -261,3 +261,12 @@ the later one is what happened.
   Lothesome's .elf refused on `Can't find common dsps_fft2r_fc32_arp4_`
   -- esp-dsp not linked into that ELF, which a failed build had left
   behind. Built with ESP-IDF 5.5.1 and the component manager off.
+- **0027** m5tab5: feckless-abi v0.2.4. *0026 on a Tab5*: the `===`
+  line came first (`=== Duplicitous === v0.1.0-8-g77633e5, IDF
+  v6.1-829-g9a97f6c54ec, ... feckless ABI v1`), the card mounted, and
+  Lothesome's .elf -- a good build -- was refused again on
+  `Can't find common dsps_fft2r_fc32_arp4_`. elf_loader 2.0.0 looks a
+  relocation against the ELF's own esp-dsp entry point up in this
+  firmware's table. Nothing here changes: v0.2.4 links apps with
+  -Bsymbolic so they make no such relocation, and checks for it. The
+  .elf must be rebuilt against v0.2.4. Not built.
