@@ -253,3 +253,11 @@ the later one is what happened.
   "FECKLESS_ABI_SYMBOL" (an unexpanded stringize); v0.2.2 registers it
   as feckless_abi_v1. The menu came back as it should after a failed
   load. Touches main/idf_component.yml: commit the lock. Not built.
+- **0026** m5tab5: a `===` line first in the log. `=== Duplicitous ===`,
+  the version, IDF, build date and time, and the feckless ABI version,
+  as Lothesome's 0005 has it -- a warning, so the console's level lets
+  it through. And feckless-abi v0.2.3, whose check deletes an ELF that
+  fails it. *0025 on a Tab5*: `feckless_abi_v1` was found, and
+  Lothesome's .elf refused on `Can't find common dsps_fft2r_fc32_arp4_`
+  -- esp-dsp not linked into that ELF, which a failed build had left
+  behind. Built with ESP-IDF 5.5.1 and the component manager off.

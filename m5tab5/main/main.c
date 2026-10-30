@@ -19,6 +19,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 
+#include "esp_app_desc.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_lcd_panel_ops.h"
@@ -633,6 +634,19 @@ static void autoboot(void)
 
 void app_main(void)
 {
+    /*
+     * 0026: the line to start reading a log from, as Lothesome's 0005
+     * has it -- above is the ROM, the bootloader and IDF's startup, below
+     * is this program -- with what it was built from, so a log can be
+     * matched to a tree, and the ABI its .elf apps must be built for.
+     * A warning, so the console's WARN level lets it through.
+     */
+    {
+        const esp_app_desc_t *d = esp_app_get_description();
+        ESP_LOGW(TAG, "=== Duplicitous === %s, IDF %s, built %s %s, feckless ABI v%d",
+                 d->version, d->idf_ver, d->date, d->time, FECKLESS_ABI_VERSION);
+    }
+
     esp_err_t e = nvs_flash_init();
     if (e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();
