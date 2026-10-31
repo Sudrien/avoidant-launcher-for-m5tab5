@@ -69,6 +69,7 @@ jobs:
             unprofitable-mahjong
             errant-moving-map-for-m5tab5
             lothesome-audio-analyzer-for-m5tab5
+            spurious-stardict-reader-for-m5tab5
         run: |
           mkdir -p _site/firmware
           : > _site/firmware/list.tsv

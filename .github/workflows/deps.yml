@@ -42,6 +42,7 @@ jobs:
         unprofitable-mahjong:m5tab5
         errant-moving-map-for-m5tab5:m5tab5
         lothesome-audio-analyzer-for-m5tab5:m5tab5
+        spurious-stardict-reader-for-m5tab5:m5tab5
     steps:
       - name: Check out
         uses: actions/checkout@v4

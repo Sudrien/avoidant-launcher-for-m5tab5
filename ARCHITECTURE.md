@@ -366,3 +366,8 @@ the later one is what happened.
   Defeatist's dependencies.lock.idf6 found by itself -- each read, its
   git dependencies up to date (the registry is not reachable from a
   session, so those were not checked).
+- **0034** spurious-stardict-reader-for-m5tab5 in pages.yml's and
+  deps.yml's project lists: its releases' firmware on the flasher, and
+  its lock (m5tab5/) in the weekly report. It was in neither, which is
+  how it was missed when the others moved to feckless-libs; its 0017
+  moves it. Run here: tools/depcheck.py on its m5tab5/, the lock read.
