@@ -44,6 +44,7 @@
 #include "feckless_abi.h"
 #include "install.h"
 #include "libversions.h"     /* 0028: generated, cmake/libversions.cmake */
+#include "limport.h"         /* 0045 */
 #include "settings.h"        /* 0028 */
 #include "vol.h"
 #include "xfer.h"
@@ -175,6 +176,45 @@ static bool gear_hit(int x, int y)
     return y < HEAD_H && x >= W - HEAD_H;
 }
 
+/* 0045: Wi-Fi networks from M5Launcher's config.conf. Seconds long, on this
+ * task: the screen says so first, and the result is a message. */
+static void import_wifi(void)
+{
+    gfx_fill_rect(0, 0, W, H, C_BG);
+    header("Wi-Fi networks", "from M5Launcher");
+    text_centred(H / 2 - TEXT_H, "Looking for the key...", C_TEXT);
+    text_centred(H / 2 + 20, "This takes a while.", C_DIM);
+    show();
+
+    int imported, skipped;
+    const limport_result_t r = limport_run(&imported, &skipped);
+    char body[200];
+    uint16_t c = C_BAD;
+    switch (r) {
+    case LIMPORT_DONE:
+        snprintf(body, sizeof body, "Saved %d network%s%s. Apps that use the network list have them now.",
+                 imported, imported == 1 ? "" : "s",
+                 skipped ? " (the rest were open, damaged or already unusable)" : "");
+        c = C_TEXT;
+        break;
+    case LIMPORT_NO_CONFIG:
+        snprintf(body, sizeof body, "No config.conf with a Wi-Fi list on the card or the drive.");
+        break;
+    case LIMPORT_NO_NETWORKS:
+        snprintf(body, sizeof body, "config.conf has no secured networks to import.");
+        break;
+    case LIMPORT_NO_KEY:
+        snprintf(body, sizeof body,
+                 "Found the networks but not their key. Put the M5Launcher .bin it came from "
+                 "on the card or the drive, in the top folder or one folder down.");
+        break;
+    default:
+        snprintf(body, sizeof body, "Out of memory.");
+        break;
+    }
+    message("Wi-Fi networks", body, c);
+}
+
 static const struct { esp_log_level_t level; const char *name; } k_levels[] = {
     { ESP_LOG_NONE, "None" }, { ESP_LOG_ERROR, "Error" }, { ESP_LOG_WARN, "Warn" },
     { ESP_LOG_INFO, "Info" }, { ESP_LOG_DEBUG, "Debug" },
@@ -193,6 +233,7 @@ static void settings_page(void)
     const int bw = (W - (N_LEVELS + 1) * PAD / 2) / N_LEVELS, bh = 80;
     const int by = HEAD_H + 30 + TEXT_H + 20;
     const int fy = H - FOOT_H + 20, fh = FOOT_H - 40;
+    const int ih = 80;
     for (;;) {
         const esp_log_level_t cur = settings_log_level();
         gfx_fill_rect(0, 0, W, H, C_BG);
@@ -207,6 +248,16 @@ static void settings_page(void)
                       lscale, W - 2 * PAD, C_DIM);
         y += lh;
         gfx_draw_text(PAD, y, "Off during a transfer, whatever this says.",
+                      lscale, W - 2 * PAD, C_DIM);
+        y += lh + 30;
+
+        gfx_fill_rect(0, y - 16, W, 2, C_RULE);             /* 0045 */
+        text(PAD, y, "Wi-Fi networks", W - 2 * PAD, C_TEXT);
+        y += TEXT_H + 16;
+        const int iy = y;
+        button(PAD, iy, W - 2 * PAD, ih, "Import from M5Launcher", C_BTN);
+        y += ih + 16;
+        gfx_draw_text(PAD, y, "Needs config.conf and the .bin it came from.",
                       lscale, W - 2 * PAD, C_DIM);
         y += lh + 30;
 
@@ -233,6 +284,7 @@ static void settings_page(void)
         int x, ty;
         wait_tap(&x, &ty, -1);
         if (hit(x, ty, 0, H - FOOT_H, W, FOOT_H)) return;
+        if (hit(x, ty, PAD, iy, W - 2 * PAD, ih)) { import_wifi(); continue; }     /* 0045 */
         for (int i = 0; i < N_LEVELS; i++)
             if (hit(x, ty, PAD / 2 + i * (bw + PAD / 2), by, bw, bh)) {
                 settings_set_log_level(k_levels[i].level);

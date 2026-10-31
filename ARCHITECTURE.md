@@ -480,3 +480,42 @@ the later one is what happened.
   Errant on the cable, which was up before Errant set its hooks:
   feckless-libs' 6006. Built with ESP-IDF v6.1 and the component
   manager off. Not on a Tab5.
+- **0045** m5tab5: Wi-Fi networks from M5Launcher, on the settings page.
+  The apps Avoidant runs take their saved networks from Avoidant
+  (`feckless_net_start()`, the `defeatist` namespace, 0043), so a network
+  M5Launcher knew was entered once there and once here. "Import from
+  M5Launcher" reads `/config.conf` from the card or the drive and saves
+  each secured network with `wifistore_save()`. Its passwords are
+  AES-128-CBC under a key M5Launcher's CI builds into its firmware, which
+  is not published, so the key is found, not stored: every printable run
+  in a `.bin` that carries Launcher's IV mark (`LauncherWifiKey!`) is a
+  candidate, and the right one decrypts every entry to valid PKCS#7 over
+  printable text. This is Defeatist's `launcher_import.c`, moved here --
+  it read the key from the factory partition, and Avoidant now holds that
+  slot, so it reads it from a file: any `.bin` of 64 KB to 8 MB in the
+  top folder or two folders down, on the volume the config was on and
+  then the other. `limport_core.c` has no ESP-IDF in it (its AES
+  tables are Defeatist's; the JSON reader is a small one for
+  config.conf's shape, so cJSON and a registry dependency stay out);
+  `limport.c` is the files and the volumes. Two things differ from
+  Defeatist's: a 64-hex PSK is 80 bytes encrypted and its buffer was 64,
+  so the PSK branch there could never run (`LI_CT_MAX` is 80); and a
+  candidate that straddled a 4096-byte read was tested cut short (its
+  `carry` was set only after the run had been ended), so a key that did
+  was missed. A wrong key fails the padding of the last block 255 times
+  in 256 for one block's work, then every entry is tested. Not measured:
+  with a config of one network a wrong key can in principle pass both,
+  and the network is saved with a wrong password; entering it again
+  replaces it.
+  Tested: `make -C m5tab5/test/limport` runs `limport_core.c` under ASan
+  and UBSan against a config.conf (pretty and minified, escapes, a
+  surrogate pair, an open network, a 33-byte SSID, a PSK) and stand-in
+  .bins made by Python's `cryptography` package, for a 36-character key
+  (cut to 16) placed over a 4096-byte boundary and a 9-character one
+  (cycled): the key found at read sizes from 1 byte to the whole file,
+  none found in a file without it, damaged and nested JSON refused;
+  98 checks, twice, none failing. `limport.c` compiled with
+  `-Wall -Wextra -Werror` against stub headers, not built; main.c's
+  edits read, not compiled. No manifest or sdkconfig change. Not on a
+  Tab5, and not run on a real M5Launcher config.conf or image: the
+  format is as Defeatist's comments describe it.
