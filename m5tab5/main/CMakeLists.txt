@@ -19,4 +19,5 @@ idf_component_register(
              feckless_storage_handler feckless_abi feckless_abi_storage
              feckless_abi_nvs feckless_nvs_handler   # 0035
              feckless_abi_camera                     # 0036
+             feckless_abi_network                    # 0041
 )

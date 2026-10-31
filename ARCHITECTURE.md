@@ -427,3 +427,16 @@ the later one is what happened.
   change: flash the merged image from 0x0, which writes the new table
   (and, as any merged image, NVS); what app2 held is gone, to be
   installed again. Built as 0041.
+- **0041** m5tab5: feckless-libs v0.6.0, and the ABI's network section.
+  feckless_abi_network and feckless_network_handler (feckless-libs'
+  6004), so an .elf app gets Wi-Fi, USB Ethernet, sockets and HTTP --
+  Errant Moving Map's (its 0043); and v0.6.0's drivers in the core list
+  (6002). The network runs under this firmware's configuration, so
+  sdkconfig.defaults has the handler's esp_hosted preset and memory
+  settings, as Errant's has them, WebSockets and the hardware ECDSA
+  signer off, which the section holds both sides to, and 28 lwIP
+  sockets, Defeatist's. Avoidant does not start the network; an app's
+  wifi_init() does. Built with ESP-IDF v6.1 and the component manager
+  off: 0x21cec0 bytes in 0040's 3 MB, 30% free; the four sections'
+  version symbols in the link; one warning, in esp_hosted's own
+  eh_host_sta_fsm.c. Not on a Tab5.

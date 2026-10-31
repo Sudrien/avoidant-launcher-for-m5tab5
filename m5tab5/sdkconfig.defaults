@@ -98,3 +98,34 @@ CONFIG_ESP_IPA_AWB_ALGORITHM=y
 CONFIG_ESP_IPA_ACC_ALGORITHM=y
 CONFIG_CAMERA_SC202CS_CUSTOMIZED_IPA_JSON_CONFIGURATION_FILE=y
 CONFIG_CAMERA_SC202CS_CUSTOMIZED_IPA_JSON_CONFIGURATION_FILE_PATH="camera/sc202cs_ipa.json"
+
+# 0041: the network, for .elf apps through the ABI's network section
+# (feckless-libs' 6004). It runs under this firmware's configuration, so
+# these are what feckless_network_handler's README asks of an
+# application, as Errant Moving Map's sdkconfig.defaults has them (and
+# Defeatist's, where each is argued at length). Avoidant itself does not
+# start the network; an app's wifi_init() does.
+#
+# wifi.c powers the C6 through the expander and calls esp_hosted_init()
+# itself; a pre-main init would find the module unpowered. The board
+# preset, and the C6's EN on GPIO15. The C6's firmware sends
+# streaming-framed reads.
+CONFIG_ESP_HOSTED_AUTO_CALL_INIT_BEFORE_APP_MAIN=n
+CONFIG_ESP32P4_TAB5_C6_BOARD=y
+CONFIG_ESP_HOSTED_HOST_RESET_GPIO=15
+CONFIG_ESP_HOSTED_HOST_SDIO_RX_STREAMING_MODE=y
+# wifi.c asks for three NIST servers; the array is sized by this.
+CONFIG_LWIP_SNTP_MAX_SERVERS=3
+# TLS, lwIP and the transport's staging buffers out of internal RAM.
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+CONFIG_LWIP_L2_TO_L3_COPY=y
+CONFIG_EH_HOST_PORT_DMA_PREFER_SPIRAM=y
+# What the network section holds both sides to that is not IDF's
+# default: WebSockets, for Defeatist's remote. And the hardware ECDSA
+# signer off, as the section has it and Errant writes down.
+CONFIG_HTTPD_WS_SUPPORT=y
+CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN=n
+# Every app's sockets are this firmware's: Defeatist wants 28 (its
+# sdkconfig.defaults), the section recommends 16 at least.
+CONFIG_LWIP_MAX_SOCKETS=28
