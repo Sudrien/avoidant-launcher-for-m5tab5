@@ -37,7 +37,7 @@ jobs:
       TITLE: Dependency updates
       # repository and the directory its dependencies.lock is in
       PROJECTS: >-
-        duplicitous-for-m5tab5:m5tab5
+        avoidant-launcher-for-m5tab5:m5tab5
         defeatist-music-player-for-m5tab5:.
         unprofitable-mahjong:m5tab5
         aimless-moving-map-for-m5tab5:.

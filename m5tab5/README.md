@@ -1,4 +1,4 @@
-# Duplicitous -- the launcher
+# Avoidant -- the launcher
 
 A minimal launcher for the M5Stack Tab5 (ESP32-P4): pick a `.bin` on
 the microSD card or a USB drive, it is written to the `app2` slot and
@@ -8,7 +8,7 @@ in a few hundred lines of plain ESP-IDF.
 
 ## Using it
 
-At power-on, if `app2` holds an app, Duplicitous boots it after three
+At power-on, if `app2` holds an app, Avoidant boots it after three
 seconds unless the screen is touched. Otherwise, or after a touch, it
 lists the microSD card and the USB drive (FAT32 or exFAT, either or
 both), then their folders and `.bin` files. Plugging or pulling one
@@ -32,7 +32,7 @@ after writing; otherwise nothing is booted and the menu says why.
 The launcher is the `factory` app. When it boots `app2` it marks it
 *new*, and the bootloader (built with app rollback on) runs a new app
 once; at the next reset, finding it unconfirmed, it falls back to the
-launcher. So **reset returns to Duplicitous**, which boots the app again
+launcher. So **reset returns to Avoidant**, which boots the app again
 after its countdown.
 
 An app that confirms itself -- any ESP-IDF app built with
@@ -44,8 +44,8 @@ get back from one, erase `otadata` from the ROM bootloader:
 
 An app with an "exit to Launcher" (defeatist-music-player-for-m5tab5's,
 or anything that calls `esp_ota_set_boot_partition()` on the factory
-slot and restarts) lands in Duplicitous's menu directly: choosing factory
-erases otadata, and Duplicitous only counts down to app2 when the
+slot and restarts) lands in Avoidant's menu directly: choosing factory
+erases otadata, and Avoidant only counts down to app2 when the
 bootloader brought it back from app2 by rollback. It stays in the menu
 across power cycles until something is booted.
 
@@ -71,7 +71,7 @@ The USB-C port carries a line console. Each reply ends with a line
 starting `OK` or `ERR`. Paths start with the volume: `/sd/...` for the
 card, `/usb/...` for the drive.
 
-    version              Duplicitous <version>
+    version              Avoidant <version>
     whoami               M5Stack Tab5
     echo <text>          ECHO <SHA-256 of text>: is anything else reading?
     vols                 VOL sd mounted total=<bytes> free=<bytes> |
@@ -99,7 +99,7 @@ flasher, `sz --ymodem` (lrzsz) from a terminal on the port, Tera Term,
 ExtraPuTTY. Type `rb /sd/bins`, then start the send; the Tab5 asks every
 second for a minute. `-g` asks for YMODEM-G, which streams without
 waiting for an acknowledgement per block: much faster. It is safe
-because, during a transfer, Duplicitous reads the USB port's hardware
+because, during a transfer, Avoidant reads the USB port's hardware
 FIFO itself rather than through ESP-IDF's driver, so USB's own flow
 control holds the sender back while the card is busy (the driver would
 drop the bytes instead -- see main/console.c). A sender that does not
@@ -116,7 +116,7 @@ While a transfer or an install runs, the Tab5 shows what is being
 written, where, and how far it has got, and the console prints no logs
 (a log line would be read as protocol). That screen is the console's
 only safeguard, on purpose: anyone with the cable can flash over
-Duplicitous itself, so a prompt would protect nothing.
+Avoidant itself, so a prompt would protect nothing.
 
 ## Building
 
@@ -124,7 +124,7 @@ ESP-IDF 5.4.2 or later:
 
     idf.py set-target esp32p4
     idf.py build
-    idf.py merge-bin -o duplicitous_standalone.bin
+    idf.py merge-bin -o avoidant_standalone.bin
 
 The panel, backlight, text, IO expanders, touch, USB host, the card and
 the drive, and the ABI that .elf apps run on, come from

@@ -5,7 +5,7 @@
  * reads a copy and shows it, so whoever is at the Tab5 can see that a
  * computer is writing, what, and how far it has got. That is the whole
  * of the console's "permission": anyone with the cable could flash over
- * Duplicitous anyway (README).
+ * Avoidant anyway (README).
  *
  * SPDX-License-Identifier: MIT
  */

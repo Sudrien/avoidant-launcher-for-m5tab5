@@ -24,6 +24,8 @@
 
 static const char *TAG = "install";
 
+/* 0032: the launcher's old name, kept, so a Tab5 updated from
+ * Duplicitous keeps its settings and its record of app2. */
 #define NVS_NS      "duplicitous"
 #define NVS_KEY     "app2"
 #define CHUNK       (32 * 1024)

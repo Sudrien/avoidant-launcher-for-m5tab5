@@ -7,7 +7,7 @@
 
 #include "esp_log.h"
 
-/* The console's log level: what reaches the USB-C port, Duplicitous's
+/* The console's log level: what reaches the USB-C port, Avoidant's
  * and a running .elf app's alike. WARN until set. A transfer still
  * silences everything while it runs (console.c), whatever this is. */
 esp_log_level_t settings_log_level(void);

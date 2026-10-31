@@ -1,7 +1,7 @@
 # Standards for inclusion
 
 What a firmware needs before the flasher lists it, and before
-Duplicitous treats it as one of its own.
+Avoidant treats it as one of its own.
 
 ## Required
 
@@ -21,7 +21,7 @@ Duplicitous treats it as one of its own.
 - **Both binaries in every release:**
   - the standalone image, from `idf.py merge-bin` (or the equivalent),
     written from 0x0, named `..._standalone.bin`;
-  - the app-only image, for an app partition -- what Duplicitous writes
+  - the app-only image, for an app partition -- what Avoidant writes
     to `app2`.
 
 - **Checksums published with the build.** A SHA-256 for each binary,
@@ -57,10 +57,10 @@ Duplicitous treats it as one of its own.
 
 - **The same list in the documentation.**
 
-## Optional: an app for Duplicitous
+## Optional: an app for Avoidant
 
 A release may also carry one `.elf`: the firmware built as an app for
-Duplicitous, with
+Avoidant, with
 `feckless_abi_elf()`, from the `feckless_abi` component of
 [feckless-libs-for-m5tab5](https://github.com/Sudrien/feckless-libs-for-m5tab5), so it runs from the card without being installed.
 The flasher lists it in step 3 and sends it to the card. Lothesome Audio

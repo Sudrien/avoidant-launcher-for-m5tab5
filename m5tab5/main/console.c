@@ -37,10 +37,10 @@ static const char *TAG = "console";
 
 #define LINE_MAX_LEN  1024
 
-const char *duplicitous_title(void)
+const char *avoidant_title(void)
 {
     static char t[48];
-    if (!t[0]) snprintf(t, sizeof t, "Duplicitous %s", esp_app_get_description()->version);
+    if (!t[0]) snprintf(t, sizeof t, "Avoidant %s", esp_app_get_description()->version);
     return t;
 }
 
@@ -350,7 +350,7 @@ static void handle(char *line)
     const char *cmd = line;
 
     if (!strcasecmp(cmd, "version")) {
-        reply("%s", duplicitous_title());
+        reply("%s", avoidant_title());
         reply("ABI feckless v%d", FECKLESS_ABI_VERSION);    /* 0029 */
         reply("OK");
         return;

@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 # CONFIG_FECKLESS_FATFS_EXFAT=n builds FAT32 only.
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(duplicitous)
+project(avoidant)
 
 # 0028: libversions.h, the settings page's list of libraries, generated
 # from the lock and components/ when the build is configured. See the file.

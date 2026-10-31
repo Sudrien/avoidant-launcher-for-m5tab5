@@ -1,6 +1,6 @@
 # ARCHITECTURE.md
 
-What Duplicitous is, and why it got that way. The rules for writing a
+What Avoidant is -- Duplicitous until 0032 -- and why it got that way. The rules for writing a
 patch are in `CLAUDE.md`; this file is the record. Entries are in the
 order they were written. Where a later one contradicts an earlier one,
 the later one is what happened.
@@ -335,3 +335,21 @@ the later one is what happened.
   duplicitous.bin 0x137290 bytes, feckless_abi_storage_v1 in it.
   `dependencies.lock` not updated. After applying: delete
   m5tab5/components/fatfs and build/, and `rm sdkconfig`. Not on a Tab5.
+- **0032** Duplicitous is Avoidant, and the repository
+  avoidant-launcher-for-m5tab5: two Tab5 projects starting with D were
+  one too many. The project is `avoidant`, so the image is avoidant.bin
+  and the releases' files `avoidant_<tag>_m5tab5*`; the console answers
+  `version` with `Avoidant <version>`, and the screen's title, the log's
+  `===` line and the licences page say Avoidant. The flasher's Pages
+  address is https://sudrien.github.io/avoidant-launcher-for-m5tab5/,
+  and its links, pages.yml's and deps.yml's project lists and
+  depreport.py's link follow the repository. Kept: the NVS namespace
+  `duplicitous`, so a Tab5 updated from Duplicitous keeps its settings
+  and its record of app2; and the flasher still takes a `Duplicitous
+  <version>` answer as this launcher's, for a Tab5 not yet updated.
+  This file's entries before this one keep the old name. Built with
+  ESP-IDF release/v6.1 and the component manager off: avoidant.bin
+  0x1372c0 bytes, holding "Avoidant %s" and the namespace "duplicitous".
+  The page's script parses (node --check); its name tests take
+  "Avoidant v0.2.0" and "Duplicitous v0.1.9" as the launcher, "Launcher
+  2.9.1" only as Launcher. Not on a Tab5, and the page not deployed.

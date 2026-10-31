@@ -7,7 +7,7 @@
  * terminal with sz, Tera Term or ExtraPuTTY can send, and so can the web
  * flasher:
  *
- *   version                 "Duplicitous <version>", "ABI feckless v<n>"
+ *   version                 "Avoidant <version>", "ABI feckless v<n>"
  *                           (0029: the .elf apps it runs), then OK
  *   whoami                  "M5Stack Tab5", then OK
  *   echo <text>             "ECHO <sha256 of text, 64 hex digits>": a
@@ -52,9 +52,9 @@
 
 #include "esp_err.h"
 
-/* "Duplicitous <version>": the build's version -- the tag CI built, or
+/* "Avoidant <version>": the build's version -- the tag CI built, or
  * `git describe` locally (esp_app_desc_t.version). */
-const char *duplicitous_title(void);
+const char *avoidant_title(void);
 
 /* Takes over the USB-Serial/JTAG's input and starts the console task. */
 esp_err_t console_start(void);

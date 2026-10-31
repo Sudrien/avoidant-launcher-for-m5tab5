@@ -107,7 +107,7 @@ if(GIT_FOUND)
     endif()
 endif()
 _lv_short(_self "${_self}")
-list(APPEND _libs "Duplicitous|${_self}|MIT")
+list(APPEND _libs "Avoidant|${_self}|MIT")
 
 # The managed components, as the lock has them. "espressif/esp_lcd_touch"
 # is managed_components/espressif__esp_lcd_touch, a git one by its bare name.

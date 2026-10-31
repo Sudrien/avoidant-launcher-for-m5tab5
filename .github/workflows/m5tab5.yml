@@ -99,36 +99,36 @@ jobs:
           idf.py set-target esp32p4
           idf.py build
           idf.py merge-bin
-          mv build/merged-binary.bin "build/duplicitous_${NAME}_m5tab5_standalone.bin"
-          mv build/duplicitous.bin "build/duplicitous_${NAME}_m5tab5.bin"
+          mv build/merged-binary.bin "build/avoidant_${NAME}_m5tab5_standalone.bin"
+          mv build/avoidant.bin "build/avoidant_${NAME}_m5tab5.bin"
           # the checksums, published with the binaries
-          (cd build && sha256sum "duplicitous_${NAME}_m5tab5_standalone.bin" \
-                                 "duplicitous_${NAME}_m5tab5.bin" > "duplicitous_${NAME}_m5tab5.sha256")
-          cat "build/duplicitous_${NAME}_m5tab5.sha256"
+          (cd build && sha256sum "avoidant_${NAME}_m5tab5_standalone.bin" \
+                                 "avoidant_${NAME}_m5tab5.bin" > "avoidant_${NAME}_m5tab5.sha256")
+          cat "build/avoidant_${NAME}_m5tab5.sha256"
 
       # A signed record that these two files, by their SHA-256, were
       # built by this workflow from this commit. It is stored with the
       # repository, not in the files: the .bins are byte for byte what
       # they were and flash as before. Every run attests, not only a
       # release, so a downloaded artifact can be checked too:
-      #   gh attestation verify <file> --repo Sudrien/duplicitous-for-m5tab5
+      #   gh attestation verify <file> --repo Sudrien/avoidant-launcher-for-m5tab5
       # A uses: step does not take the run steps' working-directory, so
       # the paths start at m5tab5/, as the archive step's do.
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            m5tab5/build/duplicitous_${{ steps.ver.outputs.name }}_m5tab5_standalone.bin
-            m5tab5/build/duplicitous_${{ steps.ver.outputs.name }}_m5tab5.bin
+            m5tab5/build/avoidant_${{ steps.ver.outputs.name }}_m5tab5_standalone.bin
+            m5tab5/build/avoidant_${{ steps.ver.outputs.name }}_m5tab5.bin
 
       - name: Archive build output artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: duplicitous_m5tab5-${{ steps.ver.outputs.name }}
+          name: avoidant_m5tab5-${{ steps.ver.outputs.name }}
           path: |
-            m5tab5/build/duplicitous_${{ steps.ver.outputs.name }}_m5tab5_standalone.bin
-            m5tab5/build/duplicitous_${{ steps.ver.outputs.name }}_m5tab5.bin
-            m5tab5/build/duplicitous_${{ steps.ver.outputs.name }}_m5tab5.sha256
+            m5tab5/build/avoidant_${{ steps.ver.outputs.name }}_m5tab5_standalone.bin
+            m5tab5/build/avoidant_${{ steps.ver.outputs.name }}_m5tab5.bin
+            m5tab5/build/avoidant_${{ steps.ver.outputs.name }}_m5tab5.sha256
 
       # The lock the component manager resolved, to be read and
       # committed until one is.
@@ -155,6 +155,6 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            m5tab5/build/duplicitous_${{ steps.ver.outputs.name }}_m5tab5_standalone.bin
-            m5tab5/build/duplicitous_${{ steps.ver.outputs.name }}_m5tab5.bin
-            m5tab5/build/duplicitous_${{ steps.ver.outputs.name }}_m5tab5.sha256
+            m5tab5/build/avoidant_${{ steps.ver.outputs.name }}_m5tab5_standalone.bin
+            m5tab5/build/avoidant_${{ steps.ver.outputs.name }}_m5tab5.bin
+            m5tab5/build/avoidant_${{ steps.ver.outputs.name }}_m5tab5.sha256

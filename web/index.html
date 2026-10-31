@@ -40,23 +40,23 @@ page asks you to confirm before anything is written.</p>
 <pre id="flashinfo" class="muted">Choose a firmware first.</pre>
 
 <h2>3. Send to the Tab5's card or USB drive</h2>
-<p>With <a href="https://github.com/Sudrien/duplicitous-for-m5tab5/tree/main/m5tab5">Duplicitous</a>
+<p>With <a href="https://github.com/Sudrien/avoidant-launcher-for-m5tab5/tree/main/m5tab5">Avoidant</a>
 running on the Tab5, this puts files on its microSD card or USB drive over the
 same USB-C port -- the firmware from step 1 instead of flashing it, or files
 from this computer, or an app it runs -- then reads each one back to check it,
 and can install a <code>.bin</code> and boot it. An app is an <code>.elf</code>
 built against the <a href="https://github.com/Sudrien/feckless-libs-for-m5tab5/tree/main/components/feckless_abi">feckless
-ABI</a>: Duplicitous lists it in green and runs it from the card, without
-installing it. Duplicitous shows what is being written while it
+ABI</a>: Avoidant lists it in green and runs it from the card, without
+installing it. Avoidant shows what is being written while it
 happens.</p>
 <label><input type="radio" name="sendsrc" value="fw" checked> The firmware chosen in step 1</label>
 <label><input type="radio" name="sendsrc" value="files"> Files from this computer:
   <input type="file" id="sendfiles" multiple></label>
-<label><input type="radio" name="sendsrc" value="app"> An app for Duplicitous:
+<label><input type="radio" name="sendsrc" value="app"> An app for Avoidant:
   <select id="sendapp"><option value="">none published</option></select></label>
 <p class="muted">An <code>.elf</code> is checked before it is sent: it must be an
 app (built with <code>feckless_abi_elf()</code>, not an IDF build's own
-<code>build/&lt;project&gt;.elf</code>) and built for the ABI this Duplicitous
+<code>build/&lt;project&gt;.elf</code>) and built for the ABI this Avoidant
 runs.</p>
 <p>On the Tab5: <span id="vols" class="muted">not checked yet</span>
   <button id="volcheck" disabled>Check storage</button>
@@ -101,7 +101,7 @@ let go of BOOT, and try once more.</p>
 
 <!-- The deploy (.github/workflows/pages.yml) writes the commit into
      data-build; anywhere else it is left as it is, and reads "local". -->
-<footer><a href="https://github.com/Sudrien/duplicitous-for-m5tab5">github.com/Sudrien/duplicitous-for-m5tab5</a> · <span id="build" data-build="__BUILD_SHA__">local</span> · MIT License</footer>
+<footer><a href="https://github.com/Sudrien/avoidant-launcher-for-m5tab5">github.com/Sudrien/avoidant-launcher-for-m5tab5</a> · <span id="build" data-build="__BUILD_SHA__">local</span> · MIT License</footer>
 
 <!-- esptool-js, Espressif's port of esptool, pinned with its hash; loaded
      only when the chip is read, so the port test works without it.
@@ -131,7 +131,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 (() => {
   const el = $('build'), sha = el.dataset.build;
   if (!/^[0-9a-f]{40}$/.test(sha)) return;
-  el.innerHTML = `<a href="https://github.com/Sudrien/duplicitous-for-m5tab5/commit/${sha}" title="The build of this page">${sha.slice(0, 7)}</a>`;
+  el.innerHTML = `<a href="https://github.com/Sudrien/avoidant-launcher-for-m5tab5/commit/${sha}" title="The build of this page">${sha.slice(0, 7)}</a>`;
 })();
 
 function say(id, text, cls) { const el = $(id); el.textContent = text; el.className = cls || ''; }
@@ -330,7 +330,7 @@ $('listen').onclick = async () => {
         if (done) break;
         const text = dec.decode(value, { stream: true });
         outWrite(text);
-        // Duplicitous's EVENT lines keep step 4's storage line current
+        // Avoidant's EVENT lines keep step 4's storage line current
         const pieces = (part + text).split('\n');
         part = pieces.pop();
         for (const l of pieces) storageLine(l.replace(/\r$/, '').trim());
@@ -597,9 +597,9 @@ $('flash').onclick = async () => {
   buttons();
 };
 
-// ---- Duplicitous's console -----------------------------------------------
+// ---- Avoidant's console -----------------------------------------------
 
-// Duplicitous (m5tab5/ in this repository) reads one command per line on
+// Avoidant (m5tab5/ in this repository) reads one command per line on
 // this port; see m5tab5/main/console.h for the commands.
 
 // The port to talk on: the one in hand, else the one Espressif port the
@@ -614,7 +614,7 @@ async function tab5Port() {
   return choosePort();
 }
 
-// ---- the Tab5's storage, as Duplicitous reports it -----------------------
+// ---- the Tab5's storage, as Avoidant reports it -----------------------
 
 // From "VOL ..." (the answer to vols) and "EVENT ..." (told unasked when a
 // card or drive comes or goes), in any session or the output view.
@@ -732,7 +732,7 @@ async function consoleSession(p) {
   return s;
 }
 
-// ---- step 3: to the card or drive, through Duplicitous ---------------------
+// ---- step 3: to the card or drive, through Avoidant ---------------------
 
 // 0029: the published apps, in step 3's list.
 function showApps() {
@@ -758,7 +758,7 @@ function appChosen() {
 }
 
 // 0029: the feckless ABI an .elf was built for, or null if it is not an
-// app Duplicitous runs. The same test as Duplicitous's elfrun.c and
+// app Avoidant runs. The same test as Avoidant's elfrun.c and
 // pages.yml: a 32-bit little-endian RISC-V shared object (an IDF build's
 // own .elf is an executable, and may name the symbol as well), and the
 // feckless_abi_vN it refers to.
@@ -776,7 +776,7 @@ function elfAbi(d) {
   return null;
 }
 
-// 0029: the ABI Duplicitous runs, from the "ABI feckless v<n>" line its
+// 0029: the ABI Avoidant runs, from the "ABI feckless v<n>" line its
 // "version" answer has after the title; null from one older than that.
 async function launcherAbi(s, version) {
   for (const end = Date.now() + 1500; Date.now() < end; ) {
@@ -791,8 +791,9 @@ async function launcherAbi(s, version) {
   return null;
 }
 
-// Duplicitous (m5tab5/ in this repository) answers "version" with
-// "Duplicitous <version>", and takes files by YMODEM after
+// Avoidant (m5tab5/ in this repository) answers "version" with
+// "Avoidant <version>" (0032; "Duplicitous <version>" before, still
+// accepted for a Tab5 not yet updated), and takes files by YMODEM after
 // "rb [-f] [-g] <dir>" (m5tab5/main/console.h). This asks for YMODEM-G:
 // the Tab5's USB does not drop bytes, so nothing needs acknowledging.
 
@@ -852,23 +853,23 @@ $('send').onclick = async () => {
     opened = Date.now();
     s = await consoleSession(port);
     const version = await askVersion(s, 'sendinfo');
-    if (!/^Duplicitous/.test(version))
-      throw new Error('This is ' + version + ', not Duplicitous: it cannot take files this way. Flash Duplicitous in steps 1 and 2.');
+    if (!/^(Avoidant|Duplicitous)\b/.test(version))
+      throw new Error('This is ' + version + ', not Avoidant: it cannot take files this way. Flash Avoidant in steps 1 and 2.');
     report.push(version);
 
-    // 0029: an .elf is an app Duplicitous can run, for its ABI
+    // 0029: an .elf is an app Avoidant can run, for its ABI
     const elfs = files.filter(f => /\.elf$/i.test(f.name));
     if (elfs.length) {
       const runs = await launcherAbi(s, version);
       for (const f of elfs) {
         const abi = elfAbi(f.data);
         if (abi === null)
-          throw new Error(f.name + ' is not an app for Duplicitous: not an ELF built with feckless_abi_elf(). '
+          throw new Error(f.name + ' is not an app for Avoidant: not an ELF built with feckless_abi_elf(). '
             + 'An IDF build\'s own build/<project>.elf is not one; the app is build/elf/<name>.app.elf, or a release\'s .elf.');
         if (runs !== null && abi !== runs)
-          throw new Error(f.name + ' is built for feckless ABI v' + abi + '; this Duplicitous runs v' + runs + '.');
+          throw new Error(f.name + ' is built for feckless ABI v' + abi + '; this Avoidant runs v' + runs + '.');
         report.push(f.name + ': feckless ABI v' + abi
-          + (runs === null ? ' (this Duplicitous does not say which it runs: older than its 0029)' : ', as this Duplicitous runs'));
+          + (runs === null ? ' (this Avoidant does not say which it runs: older than its 0029)' : ', as this Avoidant runs'));
       }
     }
 
@@ -957,7 +958,7 @@ $('send').onclick = async () => {
       report.push('Installed to app2.');
       await s.send('boot');
       booted = true;
-      report.push('Booting it; a reset brings Duplicitous back.');
+      report.push('Booting it; a reset brings Avoidant back.');
     }
     say('sendinfo', report.join('\n'), 'ok');
   } catch (e) {
@@ -974,7 +975,7 @@ $('send').onclick = async () => {
 };
 
 // Whether this page, and nothing else on the computer, is reading the
-// port. Duplicitous answers "echo <text>" with "ECHO <sha256 of text>"; a
+// port. Avoidant answers "echo <text>" with "ECHO <sha256 of text>"; a
 // second program with the port open takes some of what the Tab5 sends,
 // so a reply arrives with pieces missing, or not at all. Several rounds,
 // each with a fresh random token, so one lucky round proves nothing.
@@ -992,11 +993,11 @@ async function portIsOurs(s, rounds = 8) {
 const PORT_SHARED = 'Something else on this computer seems to have the Tab5\'s port open -- a terminal, '
   + 'idf.py monitor, another browser tab -- and is taking part of what the Tab5 sends. Close it, then try again.';
 
-// Ask "version" until Duplicitous answers, for up to 20 s. Launcher
+// Ask "version" until Avoidant answers, for up to 20 s. Launcher
 // (bmorcelli's, which this page no longer offers) answers "version" too
 // but cannot take files this way; its answer is let through so the
 // caller can say so.
-// Duplicitous ends its answer with a line "OK"; an OK that arrives with
+// Avoidant ends its answer with a line "OK"; an OK that arrives with
 // no whole version line before it means bytes went missing between them
 // -- another program reading the port, taking them a few at a time, as
 // idf.py monitor does ("Dulicit0317a7", "uplicitous 00317a7"). Two of
@@ -1007,13 +1008,13 @@ async function askVersion(s, statusId) {
   for (const end = Date.now() + 20000; Date.now() < end && !s.lost; ) {
     if (statusId) say(statusId, 'Asking for its version...', 'muted');
     const from = s.lines.length;
-    const v = await s.ask('version', /^(Duplicitous|Launcher)\s+\S/, 1500);
+    const v = await s.ask('version', /^(Avoidant|Duplicitous|Launcher)\s+\S/, 1500);
     if (v) return v;
     if (s.lines.slice(from).includes('OK') && ++damaged >= 2) throw new Error(PORT_SHARED);
   }
   if (s.lost) throw s.lost;
-  throw new Error('No answer to "version" in 20 seconds. Is Duplicitous on the Tab5\'s screen? '
-    + 'An app it started has a console of its own, or none; reset the Tab5 and touch the screen to stay in Duplicitous.');
+  throw new Error('No answer to "version" in 20 seconds. Is Avoidant on the Tab5\'s screen? '
+    + 'An app it started has a console of its own, or none; reset the Tab5 and touch the screen to stay in Avoidant.');
 }
 
 // "Test the port", by itself.
@@ -1027,7 +1028,7 @@ $('porttest').onclick = async () => {
     say('vols', 'Testing the port...', 'muted');
     s = await consoleSession(port);
     const version = await askVersion(s);
-    if (!/^Duplicitous/.test(version)) throw new Error(version + ' cannot take this test; Duplicitous can.');
+    if (!/^(Avoidant|Duplicitous)\b/.test(version)) throw new Error(version + ' cannot take this test; Avoidant can.');
     const bad = await portIsOurs(s);
     if (bad) throw new Error(PORT_SHARED + ' (' + bad + ')');
     say('vols', 'The port is this page\'s alone: 8 of 8 answers came back whole.', 'ok');
@@ -1041,7 +1042,7 @@ $('porttest').onclick = async () => {
   buttons();
 };
 
-// "Check storage": ask Duplicitous what is in, and close again.
+// "Check storage": ask Avoidant what is in, and close again.
 $('volcheck').onclick = async () => {
   busy = true; buttons();
   port = await tab5Port();
@@ -1052,7 +1053,7 @@ $('volcheck').onclick = async () => {
     say('vols', 'Asking...', 'muted');
     s = await consoleSession(port);
     const version = await askVersion(s);
-    if (!/^Duplicitous/.test(version)) throw new Error(version + ' does not report its storage; Duplicitous does.');
+    if (!/^(Avoidant|Duplicitous)\b/.test(version)) throw new Error(version + ' does not report its storage; Avoidant does.');
     if (!await s.ask('vols', /^(OK|ERR)\b/, 5000)) throw new Error('No answer to "vols".');
   } catch (e) {
     say('vols', e.message, 'bad');

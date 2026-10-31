@@ -1,8 +1,8 @@
-# duplicitous-for-m5tab5
+# avoidant-launcher-for-m5tab5
 
 Two things for the M5Stack Tab5 (ESP32-P4):
 
-- **[m5tab5/](m5tab5/)** -- Duplicitous, a minimal launcher: pick a
+- **[m5tab5/](m5tab5/)** -- Avoidant, a minimal launcher: pick a
   `.bin` on the microSD card or a USB drive (FAT32 or exFAT) and it is
   written to the `app2` slot and booted. Or pick an `.elf` built against
   the [feckless ABI](https://github.com/Sudrien/feckless-libs-for-m5tab5/tree/main/components/feckless_abi)
@@ -10,7 +10,7 @@ Two things for the M5Stack Tab5 (ESP32-P4):
   USB-C port sends files to either.
 - **[web/](web/)** -- a web flasher, over the Tab5's USB-C port.
 
-**Open the flasher: <https://sudrien.github.io/duplicitous-for-m5tab5/>**
+**Open the flasher: <https://sudrien.github.io/avoidant-launcher-for-m5tab5/>**
 
 ## The flasher
 
@@ -21,15 +21,15 @@ in Chrome, Edge, and Firefox 151 or later on desktop; Safari has no
 Web Serial.
 
 Step 3 also sends an app -- an `.elf` built against the feckless ABI --
-to the card, for Duplicitous to run without installing it; the page
+to the card, for Avoidant to run without installing it; the page
 lists each project's published one.
 
 The firmware is a standalone image (the `_standalone.bin` each project
 releases, written from 0x0) -- either the newest release of one of the
-Tab5 projects (Duplicitous among them), which the deploy copies into the site daily, or a
+Tab5 projects (Avoidant among them), which the deploy copies into the site daily, or a
 file from your computer. Flashing erases the Tab5's saved settings.
 
-With Duplicitous on the Tab5, step 3 sends files to its microSD card or
+With Avoidant on the Tab5, step 3 sends files to its microSD card or
 USB drive instead -- the firmware chosen in step 1, or files from your
 computer -- by YMODEM over the same port, reads each one back to check
 its SHA-256, and can install a `.bin` to `app2` and boot it. A file

@@ -2,7 +2,8 @@
 
 How to work on this repository. Read it before writing a patch.
 
-Two parts: `m5tab5/` is Duplicitous, the launcher firmware for the Tab5;
+Two parts: `m5tab5/` is Avoidant (Duplicitous until 0032; ARCHITECTURE.md's
+earlier entries keep that name), the launcher firmware for the Tab5;
 `web/` is the web flasher, published to GitHub Pages by
 `.github/workflows/pages.yml`. `tools/` is the dependency check that
 `.github/workflows/deps.yml` runs weekly.
@@ -117,7 +118,7 @@ one tag in `main/idf_component.yml` (0030).
 
 ## web/
 
-### Step 3 and Duplicitous's console
+### Step 3 and Avoidant's console
 
 The page opens a session per action -- it cannot hold the port between
 them, because flashing needs it -- and always starts with `version`
@@ -147,11 +148,11 @@ Firefox (151+, desktop) has been tested against a real Tab5: the port prompt was
 
 ### What gets flashed
 
-A release may also carry an `.elf` app for Duplicitous (0029): pages.yml lists it if it is a RISC-V shared object naming a `feckless_abi_v<n>`, and step 3 sends it to the card after checking it against the ABI the Tab5's Duplicitous reports on `version`'s second line. Nothing flashes an `.elf`.
+A release may also carry an `.elf` app for Avoidant (0029): pages.yml lists it if it is a RISC-V shared object naming a `feckless_abi_v<n>`, and step 3 sends it to the card after checking it against the ABI the Tab5's Avoidant reports on `version`'s second line. Nothing flashes an `.elf`.
 
 Each project's release has two .bins: `..._standalone.bin`, from `idf.py merge-bin`, written at 0x0, and the app alone, for the app partition. The page flashes only the standalone one, checked first: on the P4 the bootloader is at 0x2000, so the file is 0x2000 bytes of 0xFF and then an image header (0xE9, chip ID 18 at byte 12). An app-only .bin starts with 0xE9 and is refused.
 
-The merged image runs from 0x0 to the end of the app, so it overwrites NVS (0x9000) -- settings are lost -- and stops short of the FAT partitions (0x610000 in the OTA layouts), which survive. The projects use their own partition layouts (two OTA slots plus FAT, factory only, and Duplicitous's factory + app2 + FAT); the image carries its own table, so switching between them is fine.
+The merged image runs from 0x0 to the end of the app, so it overwrites NVS (0x9000) -- settings are lost -- and stops short of the FAT partitions (0x610000 in the OTA layouts), which survive. The projects use their own partition layouts (two OTA slots plus FAT, factory only, and Avoidant's factory + app2 + FAT); the image carries its own table, so switching between them is fine.
 
 bmorcelli/Launcher 2.9.1 was offered here, with a step that talked to its console, until 0021: it takes files only by its own `flash firmware` framing, not by what this page now sends, so it went. ARCHITECTURE.md has what was learned on hardware from it.
 
@@ -167,19 +168,19 @@ In rough order. Each is a patch (or a few) of its own when it comes.
 
 - **Two ways to flash, side by side.** "Flash standalone": what step 2
   does now -- a project's `_standalone.bin` from 0x0, replacing whatever
-  was there, Duplicitous included. "Flash with the Duplicitous
-  launcher": Duplicitous's standalone image at 0x0 and the project's
+  was there, Avoidant included. "Flash with the Avoidant
+  launcher": Avoidant's standalone image at 0x0 and the project's
   app-only `.bin` into app2 (0x210000), in one esptool-js session, so
-  the Tab5 comes up in Duplicitous with the project in app2 -- no card
+  the Tab5 comes up in Avoidant with the project in app2 -- no card
   needed. Needs: pages.yml to publish each release's app-only `.bin`
   beside the standalone one (standards.md already requires both), and
-  Duplicitous's own release among them; the app to fit app2 (4 MB);
-  otadata left erased, so the first boot is Duplicitous's menu with
+  Avoidant's own release among them; the app to fit app2 (4 MB);
+  otadata left erased, so the first boot is Avoidant's menu with
   "Boot app2", or written to select app2 once (decide which); and
-  Duplicitous's record of what app2 holds (NVS `minilauncher`/`app2`,
+  Avoidant's record of what app2 holds (NVS `minilauncher`/`app2`,
   set by `install`) either written too or left to fall back to the
   image's project name. The standalone path keeps its checks; the
-  Duplicitous path checks the app image (0xE9, chip 18) instead.
+  Avoidant path checks the app image (0xE9, chip 18) instead.
 - **USB drive mode on the USB-C port.** The Tab5's USB-C reaches the
   P4's full-speed PHY 0 directly (schematic: GPIO24/25, the CH9102F
   footprint not fitted), so TinyUSB can take it from the USB-Serial/JTAG
@@ -188,7 +189,7 @@ In rough order. Each is a patch (or a few) of its own when it comes.
   drive; it needs an on-screen Done.
 - **The headless page test into the tree**, beside
   `m5tab5/test/ymodem/`.
-- **standards.md for Duplicitous itself:** the library / version /
+- **standards.md for Avoidant itself:** the library / version /
   licence list on the device and in the documentation, generated at
   build time.
 - **The rev 1 Tab5's panel** (ILI9881C): feckless_graphics_handler

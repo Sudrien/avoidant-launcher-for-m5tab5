@@ -68,7 +68,7 @@ def main(args):
     key = "\n".join("- **%s**: %s" % (k, v) for k, v in WHAT.items())
     print(head)
     print("Checked weekly by `tools/depcheck.py` in "
-          "[deps.yml](https://github.com/Sudrien/duplicitous-for-m5tab5/blob/main/.github/workflows/deps.yml), "
+          "[deps.yml](https://github.com/Sudrien/avoidant-launcher-for-m5tab5/blob/main/.github/workflows/deps.yml), "
           "against the registry, the git remotes and ESP-IDF's tags. "
           "Only what is newer, or could not be checked, is listed; the run's log has the rest.\n")
     print("\n".join(out))

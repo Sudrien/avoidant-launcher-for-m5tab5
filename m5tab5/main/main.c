@@ -1,5 +1,5 @@
 /*
- * Duplicitous for the M5Stack Tab5 -- choose a .bin on the microSD card,
+ * Avoidant for the M5Stack Tab5 -- choose a .bin on the microSD card,
  * or a USB drive, write it to app2 and boot it, in the manner of
  * bmorcelli/Launcher.
  *
@@ -47,7 +47,7 @@
 #include "vol.h"
 #include "xfer.h"
 
-static const char *TAG = "duplicitous";
+static const char *TAG = "avoidant";
 
 #define AUTOBOOT_MS     3000
 
@@ -195,14 +195,14 @@ static void settings_page(void)
     for (;;) {
         const esp_log_level_t cur = settings_log_level();
         gfx_fill_rect(0, 0, W, H, C_BG);
-        header("Settings", duplicitous_title());
+        header("Settings", avoidant_title());
 
         text(PAD, HEAD_H + 30, "Console log level", W - 2 * PAD, C_TEXT);
         for (int i = 0; i < N_LEVELS; i++)
             button(PAD / 2 + i * (bw + PAD / 2), by, bw, bh, k_levels[i].name,
                    k_levels[i].level == cur ? C_GO : C_BTN);
         int y = by + bh + 16;
-        gfx_draw_text(PAD, y, "On the USB-C port, Duplicitous's and a running app's.",
+        gfx_draw_text(PAD, y, "On the USB-C port, Avoidant's and a running app's.",
                       lscale, W - 2 * PAD, C_DIM);
         y += lh;
         gfx_draw_text(PAD, y, "Off during a transfer, whatever this says.",
@@ -579,7 +579,7 @@ static void menu(void)
         if (page >= pages) page = pages - 1;
 
         gfx_fill_rect(0, 0, W, H, C_BG);
-        header(duplicitous_title(), s_dir[0] ? s_dir : "microSD and USB");
+        header(avoidant_title(), s_dir[0] ? s_dir : "microSD and USB");
         draw_gear();                    /* 0028 */
         for (int r = 0; r < ROWS; r++) {
             int i = page * ROWS + r - extra;
@@ -711,7 +711,7 @@ static void autoboot(void)
         int left = AUTOBOOT_MS - (int)((esp_timer_get_time() - start) / 1000);
         if (left <= 0) break;
         gfx_fill_rect(0, 0, W, H, C_BG);
-        header(duplicitous_title(), NULL);
+        header(avoidant_title(), NULL);
         text_centred(H / 2 - 120, "Booting", C_DIM);
         text_centred(H / 2 - 50, app, C_BIN);
         char s[32];
@@ -737,7 +737,7 @@ void app_main(void)
      */
     {
         const esp_app_desc_t *d = esp_app_get_description();
-        ESP_LOGW(TAG, "=== Duplicitous === %s, IDF %s, built %s %s, feckless ABI v%d",
+        ESP_LOGW(TAG, "=== Avoidant === %s, IDF %s, built %s %s, feckless ABI v%d",
                  d->version, d->idf_ver, d->date, d->time, FECKLESS_ABI_VERSION);
     }
 

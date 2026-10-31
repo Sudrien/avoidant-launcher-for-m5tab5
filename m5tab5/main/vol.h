@@ -1,5 +1,5 @@
 /*
- * vol.h -- the two volumes, as the rest of Duplicitous sees them.
+ * vol.h -- the two volumes, as the rest of Avoidant sees them.
  *
  * feckless_storage_handler mounts the microSD card at /sd and a USB
  * drive at /usb, FAT or exFAT, and remounts them as they come and go.

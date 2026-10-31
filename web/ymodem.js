@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //
-// ymodem.js -- send files by YMODEM batch, as Duplicitous's `rb` takes
+// ymodem.js -- send files by YMODEM batch, as Avoidant's `rb` takes
 // them (m5tab5/main/ymodem.h). Written from Forsberg's protocol reference
 // for this page; no library.
 //

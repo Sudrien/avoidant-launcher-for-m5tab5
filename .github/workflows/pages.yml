@@ -4,7 +4,7 @@ name: Publish the flasher
 # Publishes the site to GitHub Pages: the committed files in web/, with the commit it was built from written into
 # index.html's footer, and each Tab5 project's newest release's
 # _standalone.bin in firmware/, listed in firmware/index.json -- and,
-# 0029, its .elf where it has one: an app Duplicitous runs, sent to the
+# 0029, its .elf where it has one: an app Avoidant runs, sent to the
 # card from step 3, with the feckless ABI version it was built for. The page
 # cannot fetch release downloads from github.com itself (no CORS), which
 # is why this deploys from an action rather than from the branch.
@@ -64,7 +64,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PROJECTS: >-
-            duplicitous-for-m5tab5
+            avoidant-launcher-for-m5tab5
             defeatist-music-player-for-m5tab5
             unprofitable-mahjong
             aimless-moving-map-for-m5tab5
@@ -79,7 +79,7 @@ jobs:
             mkdir -p "$d"
             gh release download "$tag" -R "Sudrien/$repo" -p '*_standalone.bin' -D "$d" \
               || echo "::warning::$repo $tag: no _standalone.bin downloaded"
-            # 0029: an .elf app for Duplicitous, where the release has one.
+            # 0029: an .elf app for Avoidant, where the release has one.
             # Most do not; that is not a warning.
             gh release download "$tag" -R "Sudrien/$repo" -p '*.elf' -D "$d" 2>/dev/null || true
             for f in "$d"/*_standalone.bin; do
@@ -107,8 +107,8 @@ jobs:
                        'release': 'https://github.com/%s/releases/tag/%s'
                                   % (full, urllib.parse.quote(tag, safe=''))}
               if kind == 'elf':
-                  # An app for Duplicitous: a 32-bit RISC-V shared object, as
-                  # feckless_abi_elf() makes (Duplicitous's elfrun.c asks the
+                  # An app for Avoidant: a 32-bit RISC-V shared object, as
+                  # feckless_abi_elf() makes (Avoidant's elfrun.c asks the
                   # same) -- not an IDF build's debug ELF, which is an
                   # executable and may name the symbol too -- and the ABI it
                   # was built for, the feckless_abi_vN it refers to.
