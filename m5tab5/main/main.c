@@ -27,7 +27,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "nvs_flash.h"
+#include "nvs_handler.h"     /* 0035 */
 
 #include "storage.h"
 #include "storage_io.h"
@@ -741,11 +741,10 @@ void app_main(void)
                  d->version, d->idf_ver, d->date, d->time, FECKLESS_ABI_VERSION);
     }
 
-    esp_err_t e = nvs_flash_init();
-    if (e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        nvs_flash_erase();
-        nvs_flash_init();
-    }
+    /* 0035: NVS through feckless_nvs_handler, which erases a partition
+     * it cannot use, as this did -- and marks NVS up for the apps: the
+     * ABI's nvs section hands them its calls but not nvsh_init(). */
+    nvsh_init();
 
     ESP_ERROR_CHECK(tab5io_init());     /* bus, expanders, LCD_RST/TP_RST released */
     esp_lcd_panel_handle_t panel;

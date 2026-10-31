@@ -17,4 +17,5 @@ idf_component_register(
              fatfs sdmmc esp_driver_sdmmc esp_driver_usb_serial_jtag vfs
              esp_lcd esp_timer ${DUP_HAL_USB} feckless_graphics_handler feckless_drivers
              feckless_storage_handler feckless_abi feckless_abi_storage
+             feckless_abi_nvs feckless_nvs_handler   # 0035
 )

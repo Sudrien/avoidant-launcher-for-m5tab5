@@ -10,36 +10,47 @@ dependencies:
   # fatfs with exFAT (cmake/exfat.cmake's job), usb_host_msc with the
   # Tab5's fixes (components/usb_host_msc's), usb_host_uac (the drivers'
   # pin until v0.2.0) -- and the ABI's storage section, so .elf apps get
-  # the card and the drive.
+  # the card and the drive. 0035: v0.4.1, and the ABI's nvs section with
+  # feckless_nvs_handler, which brings NVS up for this firmware and the
+  # apps it runs, so an .elf app keeps its settings and saves (Unprofitable
+  # Mahjong's 0100).
   feckless_abi:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi
-    version: "v0.3.0"
+    version: "v0.4.1"
   feckless_abi_storage:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_storage
-    version: "v0.3.0"
+    version: "v0.4.1"
+  feckless_abi_nvs:
+    git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+    path: components/feckless_abi_nvs
+    version: "v0.4.1"
+  feckless_nvs_handler:
+    git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+    path: components/feckless_nvs_handler
+    version: "v0.4.1"
   feckless_drivers:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_drivers
-    version: "v0.3.0"
+    version: "v0.4.1"
   feckless_graphics_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_graphics_handler
-    version: "v0.3.0"
+    version: "v0.4.1"
   feckless_storage_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_storage_handler
-    version: "v0.3.0"
+    version: "v0.4.1"
   fatfs:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/fatfs
-    version: "v0.3.0"
+    version: "v0.4.1"
   usb_host_msc:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/usb_host_msc
-    version: "v0.3.0"
+    version: "v0.4.1"
   usb_host_uac:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/usb_host_uac
-    version: "v0.3.0"
+    version: "v0.4.1"

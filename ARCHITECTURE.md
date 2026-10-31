@@ -371,3 +371,13 @@ the later one is what happened.
   its lock (m5tab5/) in the weekly report. It was in neither, which is
   how it was missed when the others moved to feckless-libs; its 0017
   moves it. Run here: tools/depcheck.py on its m5tab5/, the lock read.
+- **0035** m5tab5: feckless-libs v0.4.1, and the ABI's nvs section.
+  All the feckless components at v0.4.1; feckless_nvs_handler and
+  feckless_abi_nvs (feckless-libs' 4003, 4004) beside them. app_main()
+  brings NVS up with `nvsh_init()` in place of its own
+  `nvs_flash_init()` -- the same erase of an unusable partition -- which
+  is also what tells the section's calls NVS is up: an .elf app such as
+  Unprofitable Mahjong's (its 0101) keeps its game and settings in its
+  own namespace. install.c and settings.c keep calling NVS directly.
+  Built with ESP-IDF v6.1 and the component manager off: 0x137370
+  bytes, no warnings. Not on a Tab5.
