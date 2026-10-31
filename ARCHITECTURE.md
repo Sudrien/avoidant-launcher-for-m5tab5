@@ -400,3 +400,13 @@ the later one is what happened.
   on. Built as 0036: 0x175060 bytes. On a Tab5, the second shows at
   boot as esp_psram's lines that the instructions and rodata were copied
   to SPIRAM. Not on a Tab5 yet.
+- **0038** Records 0035-0037 on a Tab5. *On a Tab5*: Unprofitable
+  Mahjong's .elf (its 0101, against feckless-libs v0.4.1) run from the
+  card through Avoidant with 0035-0037. NVS both ways through the nvs
+  section: a game in progress restored after a reboot. The camera
+  section: a replay code from the website read off the camera and
+  decoded, quirc running in the ELF, and recognised as a game in
+  progress. No cyan flash on a save yet (0037's XIP), over a short
+  session; Mahjong saves on every move, so longer play is the test. As
+  reported; no log was quoted, so the boot's esp_psram lines for XIP
+  are still to be seen. Documentation only.
