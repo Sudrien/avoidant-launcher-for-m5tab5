@@ -23,23 +23,23 @@ dependencies:
   feckless_abi:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi
-    version: "v0.6.1"
+    version: "v0.6.2"
   feckless_abi_storage:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_storage
-    version: "v0.6.1"
+    version: "v0.6.2"
   feckless_abi_network:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_network
-    version: "v0.6.1"
+    version: "v0.6.2"
   feckless_network_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_network_handler
-    version: "v0.6.1"
+    version: "v0.6.2"
   feckless_abi_nvs:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_nvs
-    version: "v0.6.1"
+    version: "v0.6.2"
   # 0036: the ABI's camera section, and feckless_camera behind it, so an
   # .elf app can read the camera -- Unprofitable Mahjong's Scan a code.
   # feckless_camera's manifest pins esp_video; components/esp_ipa stands
@@ -47,36 +47,36 @@ dependencies:
   feckless_abi_camera:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_camera
-    version: "v0.6.1"
+    version: "v0.6.2"
   feckless_camera:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_camera
-    version: "v0.6.1"
+    version: "v0.6.2"
   feckless_nvs_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_nvs_handler
-    version: "v0.6.1"
+    version: "v0.6.2"
   feckless_drivers:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_drivers
-    version: "v0.6.1"
+    version: "v0.6.2"
   feckless_graphics_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_graphics_handler
-    version: "v0.6.1"
+    version: "v0.6.2"
   feckless_storage_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_storage_handler
-    version: "v0.6.1"
+    version: "v0.6.2"
   fatfs:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/fatfs
-    version: "v0.6.1"
+    version: "v0.6.2"
   usb_host_msc:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/usb_host_msc
-    version: "v0.6.1"
+    version: "v0.6.2"
   usb_host_uac:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/usb_host_uac
-    version: "v0.6.1"
+    version: "v0.6.2"
