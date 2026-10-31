@@ -2,17 +2,28 @@ dependencies:
   idf:
     version: ">=5.4.2"
 
-  # 0023: the panel, backlight and gfx text; and the I2C bus, IO
-  # expanders and touch -- feckless_graphics_handler and
-  # feckless_drivers, and usb_host_uac, which the drivers build -- pinned
-  # in feckless-abi-for-m5tab5, the ABI the .elf apps are run on. Its tag
-  # is that ABI.
+  # 0030: the feckless libraries, from feckless-libs-for-m5tab5, every
+  # one at the same tag -- feckless_abi fails the build otherwise. The
+  # ABI the .elf apps are run on (0023), the panel, backlight and gfx
+  # text, the I2C bus, IO expanders, touch and USB host (usb_host_uac
+  # with them), and the card and the drive. v0.2.0's code is
+  # feckless-abi v0.2.5's and its pins', and storage handler v0.1.0's.
   feckless_abi:
-    git: https://github.com/Sudrien/feckless-abi-for-m5tab5.git
-    version: "v0.2.5"   # 0024: graphics handler v0.2.9; 0025: the version symbol
+    git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+    path: components/feckless_abi
+    version: "v0.2.0"
+  feckless_drivers:
+    git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+    path: components/feckless_drivers
+    version: "v0.2.0"
+  feckless_graphics_handler:
+    git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+    path: components/feckless_graphics_handler
+    version: "v0.2.0"
   feckless_storage_handler:
-    git: https://github.com/Sudrien/feckless-storage-handler-for-m5tab5.git
-    version: "v0.1.0"
+    git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+    path: components/feckless_storage_handler
+    version: "v0.2.0"
 
   # usb_host_msc is not here: feckless_storage_handler requires it by
   # name, and components/usb_host_msc is the player's patched 1.3.0 (its

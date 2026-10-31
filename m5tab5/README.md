@@ -126,13 +126,10 @@ ESP-IDF 5.4.2 or later:
     idf.py build
     idf.py merge-bin -o duplicitous_standalone.bin
 
-The panel, backlight, text, IO expanders, touch and USB host come from
-[feckless-graphics-handler-for-m5tab5](https://github.com/Sudrien/feckless-graphics-handler-for-m5tab5)
-and
-[feckless-drivers-for-m5tab5](https://github.com/Sudrien/feckless-drivers-for-m5tab5);
-the card and the drive from
-[feckless-storage-handler-for-m5tab5](https://github.com/Sudrien/feckless-storage-handler-for-m5tab5).
-All are pinned in `main/idf_component.yml`.
+The panel, backlight, text, IO expanders, touch, USB host, the card and
+the drive, and the ABI that .elf apps run on, come from
+[feckless-libs-for-m5tab5](https://github.com/Sudrien/feckless-libs-for-m5tab5)'s
+components, all pinned at one tag in `main/idf_component.yml`.
 
 exFAT is built in: `cmake/exfat.cmake` runs `tools/enable_exfat.sh` at
 configure time, which copies this IDF's fatfs into `components/fatfs`

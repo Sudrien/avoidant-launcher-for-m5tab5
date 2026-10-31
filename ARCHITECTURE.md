@@ -306,3 +306,15 @@ the later one is what happened.
   `apps`, no page errors); the ABI test on the same three files in
   Node; the firmware built with ESP-IDF 5.5.1 and the component manager
   off. Not on a Tab5, and not deployed.
+- **0030** m5tab5: the feckless libraries from feckless-libs-for-m5tab5
+  v0.2.0. `main/idf_component.yml` names feckless_abi, feckless_drivers,
+  feckless_graphics_handler and feckless_storage_handler there, each by
+  `path:`, all at v0.2.0, in place of feckless-abi v0.2.5 (which pinned
+  the drivers and graphics handler) and feckless-storage-handler v0.1.0.
+  The code is the same: v0.2.0 imported those tags unchanged, so this is
+  still ABI v1 and Lothesome's .elf runs as before. The READMEs,
+  standards.md, CLAUDE.md and the flasher's link name the new
+  repository. Built with ESP-IDF release/v6.1 (9a97f6c) and the
+  component manager off, against feckless-libs at v0.2.0 (2edea9f):
+  `duplicitous.bin binary size 0x135030 bytes`. `dependencies.lock` not
+  updated. Not on a Tab5.
