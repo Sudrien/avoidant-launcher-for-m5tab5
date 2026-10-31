@@ -51,7 +51,10 @@ CONFIG_USB_HOST_DWC_DMA_CAP_MEMORY_IN_PSRAM=y
 CONFIG_USB_HOST_CONTROL_TRANSFER_MAX_SIZE=1024
 
 CONFIG_FREERTOS_HZ=1000
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+# 0037: an .elf app's app_main() runs on this task, from the menu, so
+# this is the stack it gets. Unprofitable Mahjong runs its game loop
+# there on 16 KB in its own firmware; 8 KB was the menu's.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
 
 # 0023: .elf apps, run with feckless-abi-for-m5tab5's esp_elf loader.
 # esp_elf runs them from PSRAM; memory protection off, as elf_loader's
@@ -61,6 +64,13 @@ CONFIG_ELF_LOADER_LOAD_PSRAM=y
 CONFIG_ESP_SYSTEM_MEMPROT_FEATURE=n
 CONFIG_CACHE_L2_CACHE_256KB=y
 CONFIG_CACHE_L2_CACHE_LINE_128B=y
+# 0037: this firmware's code from PSRAM too, so a flash write -- an
+# app's save to NVS, or an install -- no longer stalls it. An .elf app
+# runs from PSRAM already, but calls gfx, the panel and the rest here;
+# Unprofitable Mahjong's saves flashed the panel cyan until its own
+# firmware turned this on (its "code from PSRAM" patch), and on
+# Avoidant they would again.
+CONFIG_SPIRAM_XIP_FROM_PSRAM=y
 
 # 0023: an app's USB microphone through this firmware's UAC driver: with
 # the default 4, one that lists five sample rates loses the fifth

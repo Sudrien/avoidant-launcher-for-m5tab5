@@ -391,3 +391,12 @@ the later one is what happened.
   ESP-IDF v6.1 and the component manager off: 0x173e70 bytes (0x3cb00
   more; 27% of the 2 MB partition free), the camera's and nvs's tables
   and version symbols in the link. Not on a Tab5.
+- **0037** m5tab5: what an .elf app runs under. The main task's stack
+  16 KB (8 KB was the menu's), since an app's app_main() runs on it and
+  Unprofitable Mahjong's game loop has 16 KB in its own firmware; and
+  CONFIG_SPIRAM_XIP_FROM_PSRAM, so a flash write -- an app's NVS save --
+  no longer stalls this firmware's code while the app calls into it,
+  which flashed Mahjong's panel cyan until its own firmware turned it
+  on. Built as 0036: 0x175060 bytes. On a Tab5, the second shows at
+  boot as esp_psram's lines that the instructions and rodata were copied
+  to SPIRAM. Not on a Tab5 yet.
