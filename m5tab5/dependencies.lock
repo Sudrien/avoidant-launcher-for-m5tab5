@@ -399,7 +399,7 @@ dependencies:
       type: service
     version: 0.3.3
   fatfs:
-    component_hash: 1c392f31aafa87a1f5ab126c6722da26db0f0df4d3e42330c4fbf3816822edfb
+    component_hash: 913c726b78d7f85e1f6667945e7cbae1f2671c7b48c4ef24e1a0c65bd811b931
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -407,9 +407,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/fatfs
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_abi:
-    component_hash: 0122e7b382fb63e1273381235e167e7d0045e38b9f0387d0c3193aadbee6cbfb
+    component_hash: 2eb9c79ea4c24808e85e5759a445e047e4cbc21ed344ff10eb2dc1f68ae28548
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -419,9 +419,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_abi
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_abi_camera:
-    component_hash: e744b5029b81555155b90a51b93f9fd725c2a575e6ce612871f0c699bd61f204
+    component_hash: b2a252d70567ada13833a1e552cce18dfb25fb95a648571dee8e7c0bbd99759c
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -429,9 +429,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_abi_camera
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_abi_network:
-    component_hash: 9be5d875e02fa3be26a1543a09331bacdd28878f3a29419fa484b79641e74417
+    component_hash: ed6fcadc3d0e062a52179beff29d15c7003048b03c3ed07fe103cd21c9f074a0
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -439,9 +439,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_abi_network
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_abi_nvs:
-    component_hash: 973529bb4e69daa407ec02cb4fa7fc5ea8726532239bf289dccfd9f424bc4c2b
+    component_hash: 306c073c013931a2a822e65c3bf662319873863c5392a350f49dd683957a4543
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -449,9 +449,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_abi_nvs
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_abi_storage:
-    component_hash: 354623147616840092c8929c6f654f884eb81e532cb5a13d29d2bb6319123784
+    component_hash: 2b9710598e976fe4115a23ecdb18cc45037c09f3748773637d30f450e44508eb
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -459,9 +459,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_abi_storage
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_camera:
-    component_hash: d7676421ce1679f97d2e703dd53674d2669a3b8987478765e6257eadfa879cea
+    component_hash: 4cc7685f87f6a251e31dad7711b4c13843bfd198e1802c8313d7787391977db1
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -471,9 +471,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_camera
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_drivers:
-    component_hash: a41bdb0bc57e9a3b90584abb658b2ce6eb96d93e4964363f6390642ff92383c4
+    component_hash: 67c2d1300d6f8f614184ef00968e0f86dc2136e7347058661d355523a1f4434c
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -485,9 +485,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_drivers
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_graphics_handler:
-    component_hash: 248f0f259b99db76be6284126fe409c91ad4f14b9997060d94f104a55ccf3a52
+    component_hash: 4d57e4767cc6fedfdbaab7ae2a9a7ec6cb096ecbb1349756a56a68f126911724
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -497,9 +497,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_graphics_handler
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_network_handler:
-    component_hash: 9a68d2f6b03fa4063135167d77d2aebbf5ccec05c14b953a7fa18b55ba7f5c01
+    component_hash: 360c7b904c5ef46b95cc33d95d5862b16ccd29721e7b818edfc1bde2fcc85a60
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -516,9 +516,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_network_handler
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_nvs_handler:
-    component_hash: 63460de70605109315adf42be446a97b5faf886d1cb2ad6a8d7c5dcdfc2b568c
+    component_hash: 91b2b09fd739072e707109e66cc7524bdc6df305de5ca3734a1666c5b8f389af
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -526,9 +526,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_nvs_handler
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   feckless_storage_handler:
-    component_hash: 56bce47835bc81982ee42d8ac48677ceef88659f0b63cda3aba7e601006d1af6
+    component_hash: e5838df88cb474e84ff2fb769728757a9f1b605e53e9c0d4547322b8c2313b64
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -536,13 +536,13 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_storage_handler
       type: git
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   idf:
     source:
       type: idf
     version: 6.1.0
   usb_host_msc:
-    component_hash: 4356722bc1a1adfaf0ed10c2cbffc62d9b7c5353af99f403ef8c7d137658b3fb
+    component_hash: 37e572a260aa3896063be10d9108873326a28ddbcf726ada5376aa38ccb63a58
     dependencies:
     - name: idf
       version: '>=5.0'
@@ -562,9 +562,9 @@ dependencies:
     - esp32h4
     - esp32s31
     - linux
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
   usb_host_uac:
-    component_hash: a6fdabf4afa90743bac8a9bc1d2d9143f58cb7c4b731b95a28bdb556413572cb
+    component_hash: e90131df4651d14b99b355a072de72bed47170e40ba65e702b42c8cc59ab36ee
     dependencies:
     - name: idf
       version: '>=5.0'
@@ -586,7 +586,7 @@ dependencies:
     - esp32p4
     - esp32h4
     - linux
-    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+    version: 910d81833bb637cfde9b6097161c92861a2d0c8e
 direct_dependencies:
 - espressif/cmake_utilities
 - fatfs
@@ -604,6 +604,6 @@ direct_dependencies:
 - idf
 - usb_host_msc
 - usb_host_uac
-manifest_hash: 1b3d6500fc665a753514ecd7598eb395c237a28ab260dc60e89ceac5fa0af82e
+manifest_hash: 29d9895ebbfbdcc781c732b71836f0a2795e501a107cc036faf453178c7506af
 target: esp32p4
 version: 3.0.0
