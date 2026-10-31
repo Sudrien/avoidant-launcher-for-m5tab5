@@ -66,3 +66,19 @@ CONFIG_CACHE_L2_CACHE_LINE_128B=y
 # the default 4, one that lists five sample rates loses the fifth
 # (Lothesome's 0027, the Blue Snowball's 48 kHz).
 CONFIG_UAC_FREQ_NUM_MAX=8
+
+# 0036: the camera, for .elf apps through the ABI's camera section. It
+# runs under this firmware's configuration, so these are what
+# feckless_camera's README asks of an application, as Unprofitable
+# Mahjong's sdkconfig.defaults has them: the SC202CS, and the ISP's
+# controller, without which the picture is near black; AWB and colour
+# correction, without which the sensor's pipeline will not start; and
+# Mahjong's tuning file, the default with its colour matrices the
+# identity (camera/README.md), since apps want the grey. Avoidant itself
+# never opens the camera.
+CONFIG_CAMERA_SC202CS=y
+CONFIG_ESP_VIDEO_ENABLE_ISP_PIPELINE_CONTROLLER=y
+CONFIG_ESP_IPA_AWB_ALGORITHM=y
+CONFIG_ESP_IPA_ACC_ALGORITHM=y
+CONFIG_CAMERA_SC202CS_CUSTOMIZED_IPA_JSON_CONFIGURATION_FILE=y
+CONFIG_CAMERA_SC202CS_CUSTOMIZED_IPA_JSON_CONFIGURATION_FILE_PATH="camera/sc202cs_ipa.json"

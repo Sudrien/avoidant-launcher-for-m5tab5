@@ -381,3 +381,13 @@ the later one is what happened.
   own namespace. install.c and settings.c keep calling NVS directly.
   Built with ESP-IDF v6.1 and the component manager off: 0x137370
   bytes, no warnings. Not on a Tab5.
+- **0036** m5tab5: the ABI's camera section. feckless_abi_camera and
+  feckless_camera (feckless-libs' 4005), so an .elf app reads the
+  camera -- Unprofitable Mahjong's Scan a code. The camera runs under
+  this firmware's build, so it carries what Mahjong's does: the sensor,
+  the ISP's controller, AWB and colour correction in sdkconfig.defaults,
+  Mahjong's tuning file in camera/, and its esp_ipa in components/ for
+  silicon before v3. Avoidant never opens the camera itself. Built with
+  ESP-IDF v6.1 and the component manager off: 0x173e70 bytes (0x3cb00
+  more; 27% of the 2 MB partition free), the camera's and nvs's tables
+  and version symbols in the link. Not on a Tab5.

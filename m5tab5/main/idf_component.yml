@@ -26,6 +26,18 @@ dependencies:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_nvs
     version: "v0.4.1"
+  # 0036: the ABI's camera section, and feckless_camera behind it, so an
+  # .elf app can read the camera -- Unprofitable Mahjong's Scan a code.
+  # feckless_camera's manifest pins esp_video; components/esp_ipa stands
+  # in for the esp_ipa that brings (its VENDORED.md says why).
+  feckless_abi_camera:
+    git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+    path: components/feckless_abi_camera
+    version: "v0.4.1"
+  feckless_camera:
+    git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+    path: components/feckless_camera
+    version: "v0.4.1"
   feckless_nvs_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_nvs_handler
