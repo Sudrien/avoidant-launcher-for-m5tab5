@@ -126,6 +126,12 @@ CONFIG_EH_HOST_PORT_DMA_PREFER_SPIRAM=y
 # signer off, as the section has it and Errant writes down.
 CONFIG_HTTPD_WS_SUPPORT=y
 CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN=n
+# 0044: and the verifier off too, as Errant and Defeatist have it: the
+# P4's ECDSA peripheral is not on silicon before v3, and every TLS
+# handshake an app made through this firmware logged "E
+# psa_crypto_driver_esp_ecdsa: ECDSA peripheral not supported on this
+# chip revision" before falling back to software.
+CONFIG_MBEDTLS_HARDWARE_ECDSA_VERIFY=n
 # Every app's sockets are this firmware's: Defeatist wants 28 (its
 # sdkconfig.defaults), the section recommends 16 at least.
 CONFIG_LWIP_MAX_SOCKETS=28

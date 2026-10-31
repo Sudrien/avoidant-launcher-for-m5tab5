@@ -464,3 +464,19 @@ the later one is what happened.
   call, which this does. An app built before 6005 (Errant's 0043-0045)
   calls the inits itself and finds them no-ops. Built with ESP-IDF v6.1
   and the component manager off: 0x21d180 bytes. Not on a Tab5.
+- **0044** m5tab5: Mbed TLS's hardware ECDSA verifier off. *0043 on a
+  Tab5*, with Errant Moving Map's .elf (its 0046): `feckless_net:
+  network up to be asked for` at boot; USB Ethernet's class installed
+  before the port came up and no `class registered late`; the RTL8152
+  asked for its CDC-ECM configuration (`0bda:8152: asking for
+  configuration 2`) and up on DHCP before any app (`ecm: address
+  192.168.1.125, gateway 192.168.1.254`); Errant's HTTPS request over
+  it answered (`range 0+127: HTTP 404`, the build it remembered gone
+  from the server). Each TLS handshake logged `E
+  psa_crypto_driver_esp_ecdsa: ECDSA peripheral not supported on this
+  chip revision` -- 0041 turned off the signer, as the network section
+  asks, but not the verifier, which Errant's and Defeatist's
+  sdkconfig.defaults also turn off. Now off. And SNTP never started for
+  Errant on the cable, which was up before Errant set its hooks:
+  feckless-libs' 6006. Built with ESP-IDF v6.1 and the component
+  manager off. Not on a Tab5.
