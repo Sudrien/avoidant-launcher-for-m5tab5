@@ -177,7 +177,7 @@ In rough order. Each is a patch (or a few) of its own when it comes.
   Avoidant's own release among them; the app to fit app2 (4 MB);
   otadata left erased, so the first boot is Avoidant's menu with
   "Boot app2", or written to select app2 once (decide which); and
-  Avoidant's record of what app2 holds (NVS `minilauncher`/`app2`,
+  Avoidant's record of what app2 holds (NVS `duplicitous`/`app2`,
   set by `install`) either written too or left to fall back to the
   image's project name. The standalone path keeps its checks; the
   Avoidant path checks the app image (0xE9, chip 18) instead.

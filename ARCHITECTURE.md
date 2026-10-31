@@ -353,3 +353,16 @@ the later one is what happened.
   The page's script parses (node --check); its name tests take
   "Avoidant v0.2.0" and "Duplicitous v0.1.9" as the launcher, "Launcher
   2.9.1" only as Launcher. Not on a Tab5, and the page not deployed.
+- **0033** Aimless Moving Map is Errant Moving Map
+  (errant-moving-map-for-m5tab5, its 0042), and the dependency check's
+  paths. pages.yml's and deps.yml's project lists and standards.md's
+  example name it. deps.yml also had three projects' locks at the top of
+  the repository, where none is since each moved its firmware into
+  m5tab5/ -- Lothesome's 0044, Defeatist's 8059, Errant's 0039 -- so the
+  weekly report read nothing for them; all five are `<repo>:m5tab5`
+  now. And CLAUDE.md's planned "Flash with the Avoidant launcher" named
+  the NVS namespace `minilauncher`; it is `duplicitous` (install.c).
+  Run here: tools/depcheck.py on each of the four from its m5tab5/,
+  Defeatist's dependencies.lock.idf6 found by itself -- each read, its
+  git dependencies up to date (the registry is not reachable from a
+  session, so those were not checked).

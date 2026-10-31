@@ -67,7 +67,7 @@ jobs:
             avoidant-launcher-for-m5tab5
             defeatist-music-player-for-m5tab5
             unprofitable-mahjong
-            aimless-moving-map-for-m5tab5
+            errant-moving-map-for-m5tab5
             lothesome-audio-analyzer-for-m5tab5
         run: |
           mkdir -p _site/firmware
