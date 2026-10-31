@@ -41,6 +41,12 @@ CONFIG_FATFS_API_ENCODING_UTF_8=y
 # with nothing on screen to say so.
 CONFIG_FATFS_VOLUME_COUNT=2
 
+# 0039: FatFs's fast seek, which the ABI's storage section requires
+# since its version 2 (feckless-libs' 5003; configure fails without it):
+# an app's FIL has a cltbl, and Errant's and Spurious's readers map a
+# large file's clusters with it.
+CONFIG_FATFS_USE_FASTSEEK=y
+
 # USB host, as defeatist-music-player-for-m5tab5 has it: drives behind a
 # hub, the enumeration filter feckless_drivers' usbhost.c hooks, and the
 # host's DMA buffers allowed in PSRAM (internal DMA memory is scarce).

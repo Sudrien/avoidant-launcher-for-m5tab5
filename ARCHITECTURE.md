@@ -410,3 +410,10 @@ the later one is what happened.
   session; Mahjong saves on every move, so longer play is the test. As
   reported; no log was quoted, so the boot's esp_psram lines for XIP
   are still to be seen. Documentation only.
+- **0039** m5tab5: feckless-libs v0.5.0. Every feckless component at
+  v0.5.0, whose storage section is version 2 (its 5003), with FatFs's
+  fast seek -- so CONFIG_FATFS_USE_FASTSEEK=y here, without which the
+  section fails configure -- and whose core list has 45 more names (its
+  5002) for the ports to come: Spurious StarDict Reader next. Built with
+  ESP-IDF v6.1 and the component manager off: 0x1784c0 bytes, no
+  warnings, CONFIG_FATFS_USE_FASTSEEK in sdkconfig.h. Not on a Tab5.
