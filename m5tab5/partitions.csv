@@ -3,10 +3,16 @@
 # same offsets -- so an app built for that layout finds its FAT where it
 # expects it, and the FAT survives going between them.
 #
+# 0040: 3 MB each, launcher and app2, where they were 2 MB and 4 MB. The
+# launcher links what its .elf apps take from it -- the network section
+# (0041) put it 0x1cec0 past 2 MB -- and app2 is the size of the Tab5
+# projects' own app slots (app0 and app1 in app3M_fat9M_16MB), which their
+# app-only .bins are built to fit. The two still end at 0x610000.
+#
 # Name,   Type, SubType, Offset,   Size,     Flags
 nvs,      data, nvs,      0x9000,   0x5000,
 otadata,  data, ota,      0xe000,   0x2000,
-launcher, app,  factory,  0x10000,  0x200000,
-app2,     app,  ota_0,    0x210000, 0x400000,
+launcher, app,  factory,  0x10000,  0x300000,
+app2,     app,  ota_0,    0x310000, 0x300000,
 ffat,     data, fat,      0x610000, 0x9E0000,
 coredump, data, coredump, 0xFF0000, 0x10000,

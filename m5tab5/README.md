@@ -24,7 +24,7 @@ A `.bin` can be either
   `_standalone.bin`): the app is found through the image's own partition
   table at `0x8000` and only that is copied.
 
-Either way it must be built for the ESP32-P4, fit in 4 MB, and verify
+Either way it must be built for the ESP32-P4, fit in 3 MB, and verify
 after writing; otherwise nothing is booted and the menu says why.
 
 ## Getting back
@@ -55,14 +55,17 @@ across power cycles until something is booted.
 |----------|------------------|----------|---------|
 | nvs      | data nvs         | 0x9000   | 20 KB   |
 | otadata  | data ota         | 0xe000   | 8 KB    |
-| launcher | app factory      | 0x10000  | 2 MB    |
-| app2     | app ota_0        | 0x210000 | 4 MB    |
+| launcher | app factory      | 0x10000  | 3 MB    |
+| app2     | app ota_0        | 0x310000 | 3 MB    |
 | ffat     | data fat         | 0x610000 | 9.9 MB  |
 | coredump | data coredump    | 0xFF0000 | 64 KB   |
 
 `ffat` and `coredump` are where the Tab5 projects' `app3M_fat9M_16MB`
 layout puts them, so an app built for that layout finds its FAT, and
-the FAT survives switching. Apps that expect a different table (SPIFFS,
+the FAT survives switching. app2 is the size of that layout's app
+slots, which the projects' app-only `.bin`s are built to fit; the
+launcher, which links what its `.elf` apps take from it, is the same
+size (0040, 2 MB and 4 MB until then). Apps that expect a different table (SPIFFS,
 a second OTA slot) will not find their data partitions.
 
 ## Serial console

@@ -170,11 +170,11 @@ In rough order. Each is a patch (or a few) of its own when it comes.
   does now -- a project's `_standalone.bin` from 0x0, replacing whatever
   was there, Avoidant included. "Flash with the Avoidant
   launcher": Avoidant's standalone image at 0x0 and the project's
-  app-only `.bin` into app2 (0x210000), in one esptool-js session, so
+  app-only `.bin` into app2 (0x310000), in one esptool-js session, so
   the Tab5 comes up in Avoidant with the project in app2 -- no card
   needed. Needs: pages.yml to publish each release's app-only `.bin`
   beside the standalone one (standards.md already requires both), and
-  Avoidant's own release among them; the app to fit app2 (4 MB);
+  Avoidant's own release among them; the app to fit app2 (3 MB);
   otadata left erased, so the first boot is Avoidant's menu with
   "Boot app2", or written to select app2 once (decide which); and
   Avoidant's record of what app2 holds (NVS `duplicitous`/`app2`,

@@ -417,3 +417,13 @@ the later one is what happened.
   5002) for the ports to come: Spurious StarDict Reader next. Built with
   ESP-IDF v6.1 and the component manager off: 0x1784c0 bytes, no
   warnings, CONFIG_FATFS_USE_FASTSEEK in sdkconfig.h. Not on a Tab5.
+- **0040** m5tab5: launcher and app2 3 MB each, from 2 MB and 4 MB. The
+  ABI's network section (0041) needs the launcher to link the network
+  handler, esp_hosted, lwIP, HTTP and TLS, and put it 0x1cec0 past 2 MB
+  (-Os would fit it with 57 KB left, before Defeatist's HTTPS); app2
+  becomes the size of the projects' own 3 MB app slots, which their
+  app-only .bins are built for. Both still end at 0x610000, so ffat and
+  coredump are where they were and the internal FAT survives. A table
+  change: flash the merged image from 0x0, which writes the new table
+  (and, as any merged image, NVS); what app2 held is gone, to be
+  installed again. Built as 0041.
