@@ -5,6 +5,23 @@ dependencies:
       path: components/esp_ipa
       type: local
     version: 2.4.0
+  esp_usbh_asix:
+    component_hash: 379ee7d5917b12397161d97957371607d5356bbbfb8c00055725e60e3176b5df
+    dependencies:
+    - name: idf
+      version: '>=5.4'
+    - name: espressif/iot_eth
+      public: true
+      version: ^1.1
+    source:
+      git: https://github.com/Sudrien/esp_usbh_asix.git
+      path: .
+      type: git
+    targets:
+    - esp32s2
+    - esp32s3
+    - esp32p4
+    version: 5ceb50dc77df3437c8fb0d8f30ea5b3871f51521
   espressif/cmake_utilities:
     component_hash: 351350613ceafba240b761b4ea991e0f231ac7a9f59a9ee901f751bddc0bb18f
     dependencies:
@@ -38,6 +55,20 @@ dependencies:
     - esp32c61
     - esp32p4
     version: 2.0.0
+  espressif/eppp_link:
+    component_hash: c1369b37f2b0b427b198ae14e07e7547d3da92b95fe4dc7f949e5de560b35f21
+    dependencies:
+    - name: espressif/esp_serial_slave_link
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^1.1.0
+    - name: idf
+      require: private
+      version: '>=5.2'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 1.1.6
   espressif/esp_cam_sensor:
     component_hash: 0dd6634a71cc8756f0e46c961476304a23a82db4f4c4deb8aecfa30161d2185c
     dependencies:
@@ -78,6 +109,29 @@ dependencies:
     - esp32s31
     - esp32p4
     version: 1.4.1
+  espressif/esp_hosted:
+    component_hash: c88052665d8df3c7185cb5e34327d77674599006bbbbe4bfdb43c44f9a2a73a3
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.5'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    targets:
+    - esp32
+    - esp32c2
+    - esp32s2
+    - esp32s3
+    - esp32c3
+    - esp32c5
+    - esp32c6
+    - esp32c61
+    - esp32h2
+    - esp32h4
+    - esp32h21
+    - esp32p4
+    version: 3.0.10
   espressif/esp_lcd_st7121:
     component_hash: 1d78b38f00dd25ff390c446c8d1b8e87cf7b7d95065d32f92cf5ad193ae70f58
     dependencies:
@@ -146,6 +200,16 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 1.0.0
+  espressif/esp_serial_slave_link:
+    component_hash: ac1776806de0a6e371c84e87898bb983e19ce62aa7f1e2e5c4a3b0234a575d2c
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 1.1.2
   espressif/esp_video:
     component_hash: 5694b16c12b8bb26b56ad3f999ad10119f1314d64b2d1c518bc7dfed902df9e1
     dependencies:
@@ -192,6 +256,93 @@ dependencies:
     - esp32c61
     - esp32s31
     version: 2.5.0
+  espressif/esp_wifi_remote:
+    component_hash: faa185898a843b9d7d0456e4094a3b5f1491a48ddd57ce0e5179e13ac6243f2c
+    dependencies:
+    - name: espressif/esp_hosted
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: target in [esp32h2, esp32p4]
+      version: '>=2.11'
+    - name: espressif/wifi_remote_over_eppp
+      registry_url: https://components.espressif.com
+      require: private
+      version: '>=0.1'
+    - name: idf
+      require: private
+      version: '>=5.3'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.6.5
+  espressif/iot_eth:
+    component_hash: 3be03ff933e27e17887becbed16305a561b35b66a5a4978ac51ae7f9f2ec70ea
+    dependencies:
+    - name: espressif/cmake_utilities
+      registry_url: https://components.espressif.com
+      require: private
+      version: '*'
+    - name: idf
+      require: private
+      version: '>=4.4'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.1.0
+  espressif/iot_usbh_cdc:
+    component_hash: f6cb3cdb7cf0b1434a4edcca0ecfabc7bf997b5572995ebbd72570c2183ef82c
+    dependencies:
+    - name: espressif/cmake_utilities
+      registry_url: https://components.espressif.com
+      require: private
+      version: '*'
+    - name: espressif/usb
+      registry_url: https://components.espressif.com
+      require: public
+      rules:
+      - if: idf_version >=6.0
+      - if: target not in ["linux"]
+      version: ^1.4.0
+    - name: idf
+      require: private
+      version: '>=5.1'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    targets:
+    - esp32s2
+    - esp32s3
+    - esp32s31
+    - esp32p4
+    version: 3.1.1
+  espressif/iot_usbh_ecm:
+    component_hash: d5a216b80f1c457f2b55116b290bdb9553606de6c720f011c2264a05f6507ba5
+    dependencies:
+    - name: espressif/cmake_utilities
+      registry_url: https://components.espressif.com
+      require: private
+      version: '*'
+    - name: espressif/iot_eth
+      registry_url: https://components.espressif.com
+      require: public
+      version: '*'
+    - name: espressif/iot_usbh_cdc
+      registry_url: https://components.espressif.com
+      require: public
+      version: ^3.1
+    - name: idf
+      require: private
+      version: '>=5.2'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    targets:
+    - esp32s2
+    - esp32s3
+    - esp32s31
+    - esp32p4
+    version: 0.4.0
   espressif/usb:
     component_hash: 99eee72ea224d9117d4c342442717a1f20bf8112e2ab5d7d7038b827874f4c92
     dependencies:
@@ -233,8 +384,22 @@ dependencies:
     - esp32s31
     - linux
     version: 2.5.2
+  espressif/wifi_remote_over_eppp:
+    component_hash: 1fd6968af20f0b19e421f6b519b0a8caf81d689afc3783b564c28559e45f66ef
+    dependencies:
+    - name: espressif/eppp_link
+      registry_url: https://components.espressif.com
+      require: private
+      version: '>=0.1'
+    - name: idf
+      require: private
+      version: '>=5.3'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 0.3.3
   fatfs:
-    component_hash: 420f0d8ea66f5230e335a03eb4860fe07d1267062f2bd74fb5fb9b507a3f8734
+    component_hash: 1c392f31aafa87a1f5ab126c6722da26db0f0df4d3e42330c4fbf3816822edfb
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -242,9 +407,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/fatfs
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   feckless_abi:
-    component_hash: 9f36066d635835cf4aa05320d136a1d23a864696c918449ae5e9d1681e7d7d0d
+    component_hash: 0122e7b382fb63e1273381235e167e7d0045e38b9f0387d0c3193aadbee6cbfb
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -254,9 +419,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_abi
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   feckless_abi_camera:
-    component_hash: a7b6bb0efbd2e217b3f835061b22d0ea1256af1ed247bb2b4ea79c5d6e582d1c
+    component_hash: e744b5029b81555155b90a51b93f9fd725c2a575e6ce612871f0c699bd61f204
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -264,9 +429,19 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_abi_camera
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+  feckless_abi_network:
+    component_hash: 9be5d875e02fa3be26a1543a09331bacdd28878f3a29419fa484b79641e74417
+    dependencies:
+    - name: idf
+      version: '>=5.4.2'
+    source:
+      git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+      path: components/feckless_abi_network
+      type: git
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   feckless_abi_nvs:
-    component_hash: d76486622f5b52af9f0469f4ce0b8be8d3e9ab32addf7289a672278f9adb0661
+    component_hash: 973529bb4e69daa407ec02cb4fa7fc5ea8726532239bf289dccfd9f424bc4c2b
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -274,9 +449,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_abi_nvs
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   feckless_abi_storage:
-    component_hash: afbf55ac615f13a95ea115fc3b61e68df27967b54a74dfd24b920569a4b30f5d
+    component_hash: 354623147616840092c8929c6f654f884eb81e532cb5a13d29d2bb6319123784
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -284,9 +459,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_abi_storage
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   feckless_camera:
-    component_hash: d6cd23528582defe9fa3f752e70f0d4ac0b5738effbbe2f42394be4205ce4d6c
+    component_hash: d7676421ce1679f97d2e703dd53674d2669a3b8987478765e6257eadfa879cea
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -296,9 +471,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_camera
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   feckless_drivers:
-    component_hash: 09ceca501feec26e2ef97f5556fdf16411bb6875db9b1528a7e82f17e1fe2147
+    component_hash: a41bdb0bc57e9a3b90584abb658b2ce6eb96d93e4964363f6390642ff92383c4
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -310,9 +485,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_drivers
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   feckless_graphics_handler:
-    component_hash: b0f007d10a4877df26e82058b1adfc9a09c3359ba98cf460929ebab2571c7cdc
+    component_hash: 248f0f259b99db76be6284126fe409c91ad4f14b9997060d94f104a55ccf3a52
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -322,9 +497,28 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_graphics_handler
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
+  feckless_network_handler:
+    component_hash: 9a68d2f6b03fa4063135167d77d2aebbf5ccec05c14b953a7fa18b55ba7f5c01
+    dependencies:
+    - name: idf
+      version: '>=5.4.2'
+    - name: espressif/esp_wifi_remote
+      version: '*'
+    - name: espressif/esp_hosted
+      version: '>=3.0.2'
+    - git: https://github.com/Sudrien/esp_usbh_asix.git
+      name: esp_usbh_asix
+      version: v0.1.0
+    - name: espressif/iot_usbh_ecm
+      version: '*'
+    source:
+      git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+      path: components/feckless_network_handler
+      type: git
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   feckless_nvs_handler:
-    component_hash: daaf33b829c8a433e68e1d8fae1e80e871b2ec7da44ee213b81e3394b1e880df
+    component_hash: 63460de70605109315adf42be446a97b5faf886d1cb2ad6a8d7c5dcdfc2b568c
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -332,9 +526,9 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_nvs_handler
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   feckless_storage_handler:
-    component_hash: 14e5065cc0bd22e6658510493dc11e53313f2a670be085609e127e0215292819
+    component_hash: 56bce47835bc81982ee42d8ac48677ceef88659f0b63cda3aba7e601006d1af6
     dependencies:
     - name: idf
       version: '>=5.4.2'
@@ -342,13 +536,13 @@ dependencies:
       git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
       path: components/feckless_storage_handler
       type: git
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   idf:
     source:
       type: idf
     version: 6.1.0
   usb_host_msc:
-    component_hash: 96de8f83825d9814e85a4aad83f959c4e35b3cd83a09897c7dae197307c65786
+    component_hash: 4356722bc1a1adfaf0ed10c2cbffc62d9b7c5353af99f403ef8c7d137658b3fb
     dependencies:
     - name: idf
       version: '>=5.0'
@@ -368,9 +562,9 @@ dependencies:
     - esp32h4
     - esp32s31
     - linux
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
   usb_host_uac:
-    component_hash: 08bf580b0a5a86b73754c30388c9471e043d682e1bf828a0dd3e9e474a3794a4
+    component_hash: a6fdabf4afa90743bac8a9bc1d2d9143f58cb7c4b731b95a28bdb556413572cb
     dependencies:
     - name: idf
       version: '>=5.0'
@@ -392,22 +586,24 @@ dependencies:
     - esp32p4
     - esp32h4
     - linux
-    version: 74a88d27514ddabd33957c6b357d12a030ffb5a4
+    version: 9cc3a16e668d7dc5b618c1889b2d3cb6e48950e2
 direct_dependencies:
 - espressif/cmake_utilities
 - fatfs
 - feckless_abi
 - feckless_abi_camera
+- feckless_abi_network
 - feckless_abi_nvs
 - feckless_abi_storage
 - feckless_camera
 - feckless_drivers
 - feckless_graphics_handler
+- feckless_network_handler
 - feckless_nvs_handler
 - feckless_storage_handler
 - idf
 - usb_host_msc
 - usb_host_uac
-manifest_hash: d66848e6c5fa45f70766392a30668860d7068979f1dcddd872787ac9bf2c4865
+manifest_hash: 1b3d6500fc665a753514ecd7598eb395c237a28ab260dc60e89ceac5fa0af82e
 target: esp32p4
 version: 3.0.0
