@@ -109,9 +109,9 @@ one tag in `main/idf_component.yml` (0030).
   output between them, a few bytes each. `idf.py monitor` left open does
   it. The page catches it at `version` and with `echo` (0018, 0019).
 - **The card was exFAT** -- four `sdmmc_read_blocks failed (0x104)` and a
-  failed mount under FAT32-only FatFs. exFAT is vendored at configure
-  time (`cmake/exfat.cmake`), and storage is feckless_storage_handler
-  (0007).
+  failed mount under FAT32-only FatFs. exFAT was vendored at configure
+  time (`cmake/exfat.cmake`, 0007); since 0031 it is feckless-libs'
+  `fatfs`, and storage is feckless_storage_handler.
 - **`PHASE()` markers in main.c are temporary** (0013): out once a Tab5
   shows the restart dark after 0014.
 
@@ -186,10 +186,6 @@ In rough order. Each is a patch (or a few) of its own when it comes.
   and show the card as a drive, as Launcher's `massStorage.cpp` does.
   The console and the flasher's auto-reset are gone while it is a
   drive; it needs an on-screen Done.
-- **Vendored components in the dependency check.**
-  `m5tab5/components/usb_host_msc` (and defeatist's copies) are not in
-  any lock, so `tools/depcheck.py` never compares them with the
-  registry.
 - **The headless page test into the tree**, beside
   `m5tab5/test/ymodem/`.
 - **standards.md for Duplicitous itself:** the library / version /

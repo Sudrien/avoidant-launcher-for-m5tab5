@@ -318,3 +318,20 @@ the later one is what happened.
   component manager off, against feckless-libs at v0.2.0 (2edea9f):
   `duplicitous.bin binary size 0x135030 bytes`. `dependencies.lock` not
   updated. Not on a Tab5.
+- **0031** m5tab5: feckless-libs v0.3.0, which takes what was vendored
+  here. `main/idf_component.yml` names v0.3.0 for the four feckless
+  components, and adds fatfs (exFAT, in place of cmake/exfat.cmake,
+  cmake/idfcopy.cmake and tools/enable_exfat.sh, deleted, with the
+  .gitignore line for components/fatfs), usb_host_msc (the same patched
+  1.3.0 that was components/usb_host_msc, deleted), usb_host_uac (the
+  drivers' registry pin until v0.2.0) and feckless_abi_storage, the ABI's
+  storage section: .elf apps that call feckless_abi_require_storage() get
+  the card and the drive, and FatFs, from Duplicitous. TAB5_NO_EXFAT is
+  CONFIG_FECKLESS_FATFS_EXFAT=n now. The README, CLAUDE.md and
+  libversions.cmake's notes follow; the planned item for vendored
+  components in the dependency check goes, there being none. Built with
+  ESP-IDF release/v6.1 and the component manager off, against
+  feckless-libs v0.3.0: `fatfs (feckless): exFAT`, no warnings,
+  duplicitous.bin 0x137290 bytes, feckless_abi_storage_v1 in it.
+  `dependencies.lock` not updated. After applying: delete
+  m5tab5/components/fatfs and build/, and `rm sdkconfig`. Not on a Tab5.

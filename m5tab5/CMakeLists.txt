@@ -1,12 +1,9 @@
 # SPDX-License-Identifier: MIT
 cmake_minimum_required(VERSION 3.16)
 
-# exFAT: a patched copy of this IDF's fatfs into components/fatfs, made
-# at configure time and before project.cmake scans components/. From
-# defeatist-music-player-for-m5tab5; see the file. TAB5_NO_EXFAT in the
-# environment opts out.
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/idfcopy.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/exfat.cmake)
+# exFAT is feckless-libs' fatfs component (0031), named in
+# main/idf_component.yml: it patches this IDF's FatFs at configure time.
+# CONFIG_FECKLESS_FATFS_EXFAT=n builds FAT32 only.
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(duplicitous)

@@ -131,17 +131,16 @@ the drive, and the ABI that .elf apps run on, come from
 [feckless-libs-for-m5tab5](https://github.com/Sudrien/feckless-libs-for-m5tab5)'s
 components, all pinned at one tag in `main/idf_component.yml`.
 
-exFAT is built in: `cmake/exfat.cmake` runs `tools/enable_exfat.sh` at
-configure time, which copies this IDF's fatfs into `components/fatfs`
-with exFAT turned on (both from defeatist-music-player-for-m5tab5). Set
-`TAB5_NO_EXFAT` in the environment to build FAT32 only.
+exFAT is built in: feckless-libs' `fatfs` component patches this IDF's
+FatFs at configure time. `CONFIG_FECKLESS_FATFS_EXFAT=n` builds FAT32
+only. Apps run from the card get the card and the drive through the
+feckless ABI's storage section (`feckless_abi_storage`).
 
-Licences other than MIT: `components/usb_host_msc` is Espressif's
-esp-usb MSC driver, Apache-2.0, vendored from
-defeatist-music-player-for-m5tab5 with its Tab5 DMA fixes (its own
-licence file and change notes inside). The exFAT fatfs is IDF's
-component (Apache-2.0) around ChaN's FatFs (a BSD-style notice that
-travels with it). Ark12 in the graphics handler is SIL OFL-1.1. The panel is the rev 2 Tab5's
+Licences other than MIT: feckless-libs' `usb_host_msc` and
+`usb_host_uac` are Espressif's esp-usb class drivers, Apache-2.0, with
+the Tab5's fixes (their own licence files and change notes inside). The
+exFAT fatfs is IDF's component (Apache-2.0) around ChaN's FatFs (a
+BSD-style notice that travels with it). Ark12 in the graphics handler is SIL OFL-1.1. The panel is the rev 2 Tab5's
 ST7121; a rev 1 board's ILI9881C stays dark.
 
 MIT License; see [LICENSE](../LICENSE).

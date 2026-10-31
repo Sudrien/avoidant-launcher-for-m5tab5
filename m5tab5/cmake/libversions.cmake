@@ -14,15 +14,16 @@
 #                              component manager resolved (git ones by
 #                              commit); its licence from the licence file
 #                              in managed_components/, the copy compiled
-#   components/*/              the vendored ones: usb_host_msc, the
-#                              player's patched 1.3.0; their version from
-#                              idf_component.yml, licence from their file
+#   components/*/              any vendored ones (none since 0031: the
+#                              patched usb_host_msc is feckless-libs');
+#                              their version from idf_component.yml,
+#                              licence from their file
 #   gen_ark12.py               the Ark Pixel commit the font was cut from,
 #                              in feckless_graphics_handler's tools/
 #   git                        this project's own commit
 #
-# components/fatfs, exfat.cmake's patched copy of IDF's own, is IDF's,
-# and counted under it.
+# fatfs, feckless-libs' stand-in for IDF's own, is counted with the
+# managed components, at feckless-libs' version.
 #
 # Include AFTER project(). Sets LIBVERSIONS_DIR to the directory holding
 # libversions.h, which is rewritten only when its text changes.
@@ -147,7 +148,7 @@ else()
 endif()
 
 # The vendored components: components/<name>/ with an idf_component.yml
-# version. fatfs is exfat.cmake's copy of IDF's own, without one.
+# version.
 file(GLOB _vendored LIST_DIRECTORIES true "${_root}/components/*")
 foreach(_d IN LISTS _vendored)
     if(IS_DIRECTORY "${_d}" AND EXISTS "${_d}/idf_component.yml")
