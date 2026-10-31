@@ -440,3 +440,17 @@ the later one is what happened.
   off: 0x21cec0 bytes in 0040's 3 MB, 30% free; the four sections'
   version symbols in the link; one warning, in esp_hosted's own
   eh_host_sta_fsm.c. Not on a Tab5.
+- **0042** m5tab5: an RTL8152 enumerates in its CDC-ECM configuration,
+  and 0040-0041 on a Tab5. *On a Tab5*: Errant Moving Map's .elf (its
+  0043, 0044) run from the card in 0040's 3 MB launcher, 0041's network
+  section in it -- the radio up from the app's `wifi_init()` (`tab5_wifi:
+  radio up`), a scan, the portal's access point and DHCP server, and the
+  radio down; the RX8130, the BMI270 and the GNSS on the core list's
+  I2C and UART. Ethernet's class registered late, and the port cycled
+  for it (`class registered late: cycling VBUS`); the attached RTL8152
+  enumerated again, in its vendor configuration (`No ECM interface found
+  for device VID: 0BDA, PID: 8152`), since nothing had set the drivers'
+  configuration selector -- Errant's 0045 sets it, and so does this, at
+  boot, with the network handler's `ethcfg_select()`, so an adapter
+  attached at boot is ready for any app. Built with ESP-IDF v6.1 and the
+  component manager off. Not on a Tab5.

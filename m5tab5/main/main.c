@@ -32,6 +32,7 @@
 #include "storage.h"
 #include "storage_io.h"
 #include "usbhost.h"
+#include "ethcfg.h"           /* 0042 */
 
 #include "gfx.h"
 #include "lcd.h"
@@ -762,6 +763,12 @@ void app_main(void)
      * which powers the USB-A socket. The card and the drive mount on
      * storage's own poll task, and remount as they come and go. */
     ESP_ERROR_CHECK(usbhost_init(tab5io_exp2()));
+    /* 0042: which configuration a Realtek RTL8152/8153 Ethernet adapter
+     * gets -- its second, CDC-ECM, not its vendor first -- from the
+     * network handler this firmware links for its apps (0041). Set before
+     * the port comes up, so one attached at boot enumerates ready for an
+     * app's ethernet_init(); an app may set it again. */
+    usbhost_set_config_select(ethcfg_select);
     storage_io_init();
     static const storage_usb_t usb = {
         .register_class = usbhost_register_class,
