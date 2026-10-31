@@ -454,3 +454,13 @@ the later one is what happened.
   boot, with the network handler's `ethcfg_select()`, so an adapter
   attached at boot is ready for any app. Built with ESP-IDF v6.1 and the
   component manager off. Not on a Tab5.
+- **0043** m5tab5: the network is this firmware's, as storage is.
+  `feckless_net_start()` (feckless-libs' 6005) after storage and before
+  the USB port: the saved networks (Defeatist's list, which Errant reads
+  too), USB Ethernet's class with the configuration selector 0042 set,
+  the radio's task. Ethernet no longer registers after the port is up,
+  so an app's start does not cycle VBUS; nothing is powered until an app
+  sets its policy and asks for the radio. Replaces 0042's own selector
+  call, which this does. An app built before 6005 (Errant's 0043-0045)
+  calls the inits itself and finds them no-ops. Built with ESP-IDF v6.1
+  and the component manager off: 0x21d180 bytes. Not on a Tab5.
