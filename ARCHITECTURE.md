@@ -633,3 +633,51 @@ the later one is what happened.
   Not built (no ESP-IDF in the session), not on a Tab5. What to look for:
   Defeatist's ELF starting from the menu, and a FLAC track playing
   (`AUD_Dec_Parse: FLAC sample_rate ...` then `first sound`).
+- **0050** Defeatist Music Player's .elf on a Tab5 under Avoidant, and
+  what changed since 0049. No code changes.
+  *Since 0049:* the lock commits after it re-resolved
+  `dependencies.lock` (`espressif/esp_audio_codec` came in at 2.5.0, as
+  `feckless_abi_audio` pins it) and moved every feckless pin to `v0.8.4`
+  (tagged here as v0.2.0-pre8). v0.8.4 is v0.8.3 plus feckless-libs' 8009,
+  `abort` in the core list: Defeatist's 8095 compiles with
+  `CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT`, under which IDF's
+  `ESP_ERROR_CHECK()` calls `abort()`, and the ELF's ABI check failed on
+  that one name until the list had it. A launcher before v0.8.4 refuses
+  such an ELF naming `abort`.
+  *On a Tab5,* IDF v6.1-829-g9a97f6c54ec. Avoidant `v0.2.0-pre7-dirty`,
+  built five minutes before pre8's pin move was committed; Defeatist's ELF
+  `v0.8.0-pre2-38-g1372aa9-dirty`, a local commit and uncommitted changes
+  on top of its 8095 (what they were is not recorded here). From the menu:
+  `avoidant: running /sd/apps/defeatist_player.app.elf (833596 bytes)`,
+  `ELF: ELF loader version: 2.0.0`, `feckless_abi: app: 833596 bytes, ABI
+  v1`, then Defeatist's banner. Every section the ELF names resolved.
+  Played through the audio section: `13 flac-short-3s.flac` and
+  `05 flac.flac` (`AUD_Dec_Parse: FLAC sample_rate 44100 ...`, first sound
+  158 and 161 ms, trim exact, gapless join possible), `14 wav-mono-22k.wav`
+  (the rate change to 22050 Hz drained first) and `06 ogg-vorbis.ogg`
+  (`tab5_oggsk: vorbis ...`, first sound 501 ms). No stack fault on the
+  main task at 0049's 24576. The image section's engine came up
+  (`img_esp: hardware JPEG engine ready`); storage, NVS settings, the
+  reindex and NTP over USB Ethernet as in Defeatist's own firmware.
+  `ELF: Too much padding before segment[2], padding: 2328` is elf_loader's
+  note on the ELF's layout, not an error.
+  **Open: a late USB class cycles VBUS, and the wired network drops.**
+  Defeatist registers its UAC and HID class drivers when it starts, after
+  this firmware's USB host is up with msc and eth, so `tab5_usbhost` cycled
+  VBUS twice (`class registered late: cycling VBUS`, at 52733 and 53143 ms).
+  The USB Ethernet adapter (0bda:8152) was pulled mid-transfer: `USBH_CDC:
+  IN Transfer failed`, `USB HOST: EP command error: ESP_ERR_INVALID_STATE`
+  five times, `Enqueue URB error`, and once `HUB: Root port reset failed`.
+  It re-enumerated, its link was up at 55149 ms and its address back at
+  63653 ms: about 11 s without a network, every time an app with a late
+  class starts. Installing uac and hid here at boot, beside msc and eth,
+  would leave nothing to register late; not done in this patch.
+  **Open: less internal RAM for the app than in its own firmware.** At the
+  app's boot under Avoidant: internal free 118827, largest 38912, min-ever
+  86780; DMA-capable min-ever 68628. In Defeatist's own firmware at the
+  same point: internal free 176675, largest 86016, DMA min-ever 93760.
+  netstream's `internal free` when it set up: 160719 here, 260471 there.
+  Some of it is this firmware's own allocations, and 8 KB is 0049's larger
+  main task. This run had USB Ethernet and no Wi-Fi; Wi-Fi's DMA pool comes
+  out of the same RAM, so Defeatist streaming over Wi-Fi under Avoidant is
+  the run to make next, watching DMA min-ever and `allocation failures`.
