@@ -569,3 +569,29 @@ the later one is what happened.
   on a Tab5. Open, from feckless-libs 8005: over USB Ethernet the name does
   not resolve by mDNS; the C6 radio's firmware might not pass multicast
   (`ping feckless-xxxxxx.local` from another machine is the test).
+- **0048** m5tab5: the ABI's image and crypto sections, for Defeatist
+  Music Player's .elf. Defeatist's ELF takes the P4's JPEG engine
+  (`jpeg_new_decoder_engine` and the rest of the decoder half, the image
+  section) and one SHA-256, in approve.c (the crypto section, which
+  feckless-libs 8007 shrank to hashing: `mbedtls_sha256` on Mbed TLS 3.6,
+  `psa_hash_compute` on 4.0). A launcher that does not link a section
+  refuses an app that names it, in `esp_elf_relocate()`, so this firmware
+  links both: `feckless_abi_image` and `feckless_abi_crypto` in main's
+  REQUIRES and the manifest. **Every feckless pin is `v0.8.2` now**
+  (one tag for all, as `feckless_abi` checks), because the crypto section
+  of v0.8.1 is still the large version 1 (pk layer, X.509 writer,
+  key generation) and that is not what is wanted linked into a launcher;
+  v0.8.2 is feckless-libs' v0.8.1 plus 8007. **The tag must exist before
+  this configures.**
+  *Number:* 0047 was handed over as a patch that moved the pins to v0.8.1
+  and was not applied -- the pins were moved in the "lock" commit instead --
+  so this is 0048 and 0047 is left as a gap, not reused.
+  **`idf_component.yml` changed, so the lock re-resolves** on the next
+  configure: the git pins move to v0.8.2 and two components (and what they
+  require: `esp_driver_jpeg` is IDF's) join; read the diff. No
+  `sdkconfig.defaults` change. Not built (no ESP-IDF in the session, and
+  the tag does not exist), not on a Tab5. What to look for: `feckless_abi:
+  ... all in feckless_abi_v1 + ...` is the app's check, not this firmware's;
+  here the evidence is a clean configure and link, and Defeatist's ELF
+  loading without `feckless_abi_image_v1` or `feckless_abi_crypto_v2` in
+  the `esp_elf_relocate()` error.

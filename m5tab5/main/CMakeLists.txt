@@ -21,5 +21,6 @@ idf_component_register(
              feckless_abi_nvs feckless_nvs_handler   # 0035
              feckless_abi_camera                     # 0036
              feckless_abi_network                    # 0041
+             feckless_abi_image feckless_abi_crypto  # 0048
              feckless_network_handler                # 0045: wifistore_save()
 )
