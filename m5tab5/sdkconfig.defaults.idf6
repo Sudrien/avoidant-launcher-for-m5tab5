@@ -1,0 +1,19 @@
+# sdkconfig.defaults.idf6 -- read after sdkconfig.defaults, on ESP-IDF 6
+# only (0046; the top-level CMakeLists.txt adds it). For options IDF 5.x
+# does not have, which in sdkconfig.defaults would warn on every 5.x
+# configure that they do nothing. Everything else stays in
+# sdkconfig.defaults, which IDF 6 reads first.
+#
+# Like sdkconfig.defaults, this only seeds a NEW sdkconfig: rm sdkconfig
+# after changing it.
+
+# ---------------------------------------------------------------------------
+# X.509 CERTIFICATE WRITING, FOR THE DEVICE'S HTTPS CERTIFICATE.
+#
+# feckless_network_handler's feckless_cert.c writes the self-signed
+# certificate the network section's feckless_https_start() serves HTTPS
+# with. IDF 5.x always built Mbed TLS's X.509 writer; IDF 6 puts it behind
+# this, default off. Without it feckless_cert.c is two stubs: the build
+# passes and the first app that starts a server is told ESP_ERR_NOT_SUPPORTED
+# with a log line saying why.
+CONFIG_MBEDTLS_X509_CREATE_C=y

@@ -125,6 +125,14 @@ CONFIG_EH_HOST_PORT_DMA_PREFER_SPIRAM=y
 # default: WebSockets, for Defeatist's remote. And the hardware ECDSA
 # signer off, as the section has it and Errant writes down.
 CONFIG_HTTPD_WS_SUPPORT=y
+# 0046: and esp_https_server, which builds nothing unless this is set.
+# The network section's feckless_https_start() (feckless-libs 8004) is
+# httpd_ssl_start() with the device's own certificate, kept here for
+# every app; without this it does not link, and feckless_abi_network says
+# so at configure time. rm sdkconfig before building. The line that
+# proves it took is the first app's `feckless_https: made a certificate
+# for feckless-xxxxxx` (and `answering mDNS as feckless-xxxxxx.local`).
+CONFIG_ESP_HTTPS_SERVER_ENABLE=y
 CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN=n
 # 0044: and the verifier off too, as Errant and Defeatist have it: the
 # P4's ECDSA peripheral is not on silicon before v3, and every TLS

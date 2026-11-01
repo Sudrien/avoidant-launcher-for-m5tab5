@@ -519,3 +519,53 @@ the later one is what happened.
   edits read, not compiled. No manifest or sdkconfig change. Not on a
   Tab5, and not run on a real M5Launcher config.conf or image: the
   format is as Defeatist's comments describe it.
+- **0046** m5tab5: the device's HTTPS certificate is this firmware's.
+  Defeatist's ELF will not make its own (its 8070 survey; feckless-libs'
+  8004), so this firmware gives the network section's four new names and
+  has what they need. The ABI the apps run on is unchanged (v1); the
+  names are additions to the network section.
+  **Needs feckless-libs v0.8.0, which is not tagged yet: this patch
+  cannot configure until it is** (every pin is a tag, and the tag the 8000
+  series leads to is the one that has 8004 and 8005). All fourteen feckless
+  pins move together from v0.6.2 to v0.8.0, the one tag `feckless_abi`
+  checks for. What that crosses, from the libraries' own notes: the core
+  list's additions (7002, `esp_ota_set_boot_partition` and four more), the
+  image section and `feckless_image_handler` (7004-7010, none used here),
+  the nvs migration table and `wifi_request_apply()` (additions to
+  components this firmware uses), and the 8000s: the crypto section (8003,
+  not linked here -- it is about to shrink to hashing and nothing needs it
+  yet), `feckless_https_*` (8004) and the mDNS responder (8005). Per
+  Defeatist's 8069 the changes to the components used are additions;
+  nothing here was changed to match.
+  `main/idf_component.yml` is a manifest change: **`dependencies.lock`
+  re-resolves on the next build, and the diff wants reading** -- the
+  pins, and the new registry dependency `espressif/mdns` that
+  `feckless_network_handler` now brings (a range, `>=1.8.0`, which the
+  lock will turn into a version).
+  `sdkconfig.defaults` gains `CONFIG_ESP_HTTPS_SERVER_ENABLE=y`:
+  `feckless_https_start()` is `httpd_ssl_start()` behind the device's
+  certificate, and esp_https_server builds nothing without it. **`rm
+  sdkconfig` before the next build.** The line that says it took is an
+  absence: `feckless_abi_network` warns at configure time without it
+  ("CONFIG_ESP_HTTPS_SERVER_ENABLE=y is needed by a launcher"), so a
+  configure with no such warning has it. On a Tab5, the first app that
+  starts a server logs `feckless_https: made a certificate for
+  feckless-xxxxxx in N ms`, then `answering mDNS as feckless-xxxxxx.local`;
+  the next boot loads it (`SHA-256 ...` with no "made" line).
+  `sdkconfig.defaults.idf6` is new, read after the shared defaults on IDF
+  6 only (CI builds 6.1 by default; 5.5.5 is the other choice, and a symbol
+  IDF 5 does not have would warn at every configure), as Defeatist keeps
+  its own: `CONFIG_MBEDTLS_X509_CREATE_C=y`, the X.509 writer IDF 5 always
+  built and IDF 6 puts behind that. Without it `feckless_cert.c` is two
+  stubs and the first server start says `ESP_ERR_NOT_SUPPORTED` in a log
+  line; the build does not stop. The top-level CMakeLists.txt adds the file.
+  Nothing else changes: this firmware does not call `feckless_https_*`
+  itself, and does not name a certificate -- the default name is
+  `feckless-` and the last three bytes of the chip's MAC, and it can be
+  changed with `feckless_https_set_name()` before the first server starts,
+  which nothing here does yet. NVS is up before any app runs (0035), which
+  is what the identity needs to be kept.
+  Not built (no ESP-IDF in the session, and the tag does not exist), not
+  on a Tab5. Open, from feckless-libs 8005: over USB Ethernet the name does
+  not resolve by mDNS; the C6 radio's firmware might not pass multicast
+  (`ping feckless-xxxxxx.local` from another machine is the test).

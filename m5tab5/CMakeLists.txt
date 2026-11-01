@@ -6,6 +6,13 @@ cmake_minimum_required(VERSION 3.16)
 # CONFIG_FECKLESS_FATFS_EXFAT=n builds FAT32 only.
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
+# 0046: the options only IDF 6 has, after the shared defaults. See the top
+# of sdkconfig.defaults.idf6.
+if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
+    set(SDKCONFIG_DEFAULTS "sdkconfig.defaults;sdkconfig.defaults.idf6")
+endif()
+
 project(avoidant)
 
 # 0028: libversions.h, the settings page's list of libraries, generated
