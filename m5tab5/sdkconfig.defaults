@@ -60,7 +60,26 @@ CONFIG_FREERTOS_HZ=1000
 # 0037: an .elf app's app_main() runs on this task, from the menu, so
 # this is the stack it gets. Unprofitable Mahjong runs its game loop
 # there on 16 KB in its own firmware; 8 KB was the menu's.
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
+# 0049: 24 KB, Defeatist Music Player's own main task. It decodes on this
+# task, and esp_audio_codec's decoders want about 20 KB of stack in the
+# task that calls them (Defeatist's sdkconfig.defaults); its radio path
+# checks for NETDEC_MIN_STACK, 24576, and refuses a stream below it.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=24576
+
+# 0049: esp_audio_codec, linked for the ABI's audio section. Which decoders
+# esp_audio_dec_register_default() registers is this launcher's
+# configuration, not the app's, and each one is code here. Off: the ones
+# Defeatist turns off in its own firmware (MP3 is its minimp3; it plays no
+# G.711, AMR, SBC, LC3 or G.722). On, as the component defaults them: AAC,
+# FLAC, Opus, Vorbis, ADPCM, ALAC and PCM, and the WAV, M4A, TS and Ogg
+# parsers. An app that wants one of these off ones needs it on here.
+CONFIG_AUDIO_DECODER_MP3_SUPPORT=n
+CONFIG_AUDIO_DECODER_G711_SUPPORT=n
+CONFIG_AUDIO_DECODER_AMRNB_SUPPORT=n
+CONFIG_AUDIO_DECODER_AMRWB_SUPPORT=n
+CONFIG_AUDIO_DECODER_SBC_SUPPORT=n
+CONFIG_AUDIO_DECODER_LC3_SUPPORT=n
+CONFIG_AUDIO_DECODER_G722_SUPPORT=n
 
 # 0023: .elf apps, run with feckless-abi-for-m5tab5's esp_elf loader.
 # esp_elf runs them from PSRAM; memory protection off, as elf_loader's

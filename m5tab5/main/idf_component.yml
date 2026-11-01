@@ -33,23 +33,23 @@ dependencies:
   feckless_abi:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi
-    version: "v0.8.2"
+    version: "v0.8.3"
   feckless_abi_storage:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_storage
-    version: "v0.8.2"
+    version: "v0.8.3"
   feckless_abi_network:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_network
-    version: "v0.8.2"
+    version: "v0.8.3"
   feckless_network_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_network_handler
-    version: "v0.8.2"
+    version: "v0.8.3"
   feckless_abi_nvs:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_nvs
-    version: "v0.8.2"
+    version: "v0.8.3"
   # 0036: the ABI's camera section, and feckless_camera behind it, so an
   # .elf app can read the camera -- Unprofitable Mahjong's Scan a code.
   # feckless_camera's manifest pins esp_video; components/esp_ipa stands
@@ -57,11 +57,11 @@ dependencies:
   feckless_abi_camera:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_camera
-    version: "v0.8.2"
+    version: "v0.8.3"
   feckless_camera:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_camera
-    version: "v0.8.2"
+    version: "v0.8.3"
   # 0048: the ABI's image and crypto sections, so Defeatist Music Player's
   # .elf runs here: its pictures use the P4's JPEG engine (the image
   # section) and approve.c a SHA-256 (the crypto section, shrunk to
@@ -69,36 +69,47 @@ dependencies:
   feckless_abi_image:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_image
-    version: "v0.8.2"
+    version: "v0.8.3"
   feckless_abi_crypto:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_abi_crypto
-    version: "v0.8.2"
+    version: "v0.8.3"
+  # 0049: the ABI's audio section (feckless-libs' 8008, in v0.8.3, which
+  # moves every pin here): esp_audio_codec's decoders for Defeatist Music
+  # Player's .elf, which cannot link them itself -- the codec's archives
+  # are not position-independent. feckless_abi_audio's own manifest pins
+  # espressif/esp_audio_codec at exactly 2.5.0 (2.6 needs P4 silicon
+  # revision 3.0; the Tab5s are v1.3), so this launcher and the app agree
+  # on the structures the app hands the codec.
+  feckless_abi_audio:
+    git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
+    path: components/feckless_abi_audio
+    version: "v0.8.3"
   feckless_nvs_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_nvs_handler
-    version: "v0.8.2"
+    version: "v0.8.3"
   feckless_drivers:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_drivers
-    version: "v0.8.2"
+    version: "v0.8.3"
   feckless_graphics_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_graphics_handler
-    version: "v0.8.2"
+    version: "v0.8.3"
   feckless_storage_handler:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/feckless_storage_handler
-    version: "v0.8.2"
+    version: "v0.8.3"
   fatfs:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/fatfs
-    version: "v0.8.2"
+    version: "v0.8.3"
   usb_host_msc:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/usb_host_msc
-    version: "v0.8.2"
+    version: "v0.8.3"
   usb_host_uac:
     git: https://github.com/Sudrien/feckless-libs-for-m5tab5.git
     path: components/usb_host_uac
-    version: "v0.8.2"
+    version: "v0.8.3"

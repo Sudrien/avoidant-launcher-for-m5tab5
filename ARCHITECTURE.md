@@ -595,3 +595,41 @@ the later one is what happened.
   here the evidence is a clean configure and link, and Defeatist's ELF
   loading without `feckless_abi_image_v1` or `feckless_abi_crypto_v2` in
   the `esp_elf_relocate()` error.
+- **0049** m5tab5: the ABI's audio section, for Defeatist Music Player's
+  .elf. Defeatist's ELF (its 8093) takes esp_audio_codec's decoders through
+  feckless-libs' new audio section (8008, in v0.8.3): the codec's archives
+  are not position-independent, so they cannot link into an ELF, and the
+  launcher links them instead. A launcher without the section refuses the
+  ELF in `esp_elf_relocate()`, naming `feckless_abi_audio_v1`. So:
+  `feckless_abi_audio` in main's REQUIRES and the manifest, and **every
+  feckless pin `v0.8.3`** (one tag for all; v0.8.3 is v0.8.2 plus 8008).
+  Its manifest pins `espressif/esp_audio_codec` at exactly 2.5.0, so this
+  launcher and the app have the same codec headers.
+  *Main task stack 16384 -> 24576.* The app's `app_main()` runs on this
+  task (0037), and Defeatist decodes on it: esp_audio_codec wants about
+  20 KB of stack in the calling task (Defeatist's own firmware sets 24576
+  for that), and its radio path checks for `NETDEC_MIN_STACK`, 24576, and
+  refuses a stream below it. 16 KB would overflow inside the codec on the
+  first FLAC or AAC track. 8 KB more internal RAM for the main task.
+  *The codec's decoders.* Which decoders `esp_audio_dec_register_default()`
+  registers is this launcher's configuration, and each is code here. Off,
+  as in Defeatist's own `sdkconfig.defaults`: MP3 (it uses minimp3), G.711,
+  AMR-NB, AMR-WB, SBC, LC3, G.722. On, as the component defaults them: AAC,
+  FLAC, Opus, Vorbis, ADPCM, ALAC, PCM and the WAV, M4A, TS and Ogg parsers
+  -- what Defeatist's decoder.c and netdec.c open.
+  **`idf_component.yml` changed, so the lock re-resolves** on the next
+  configure: the git pins move to v0.8.3, and `feckless_abi_audio` and
+  `espressif/esp_audio_codec` (registry, 2.5.0) join; read the diff, and
+  stop if the codec is anything but 2.5.0. **`sdkconfig.defaults` changed:
+  `rm sdkconfig` before the next build.** Proof it took:
+  `build/config/sdkconfig.h` has `CONFIG_ESP_MAIN_TASK_STACK_SIZE 24576` and
+  no `CONFIG_AUDIO_DECODER_MP3_SUPPORT` (nor the other six); and
+  `idf.py size-components` shows `libesp_audio_codec.a` near the 334 KB it
+  is in Defeatist's standalone build with the same lines.
+  *Size:* the factory slot is 3 MB (0040). This adds the codec, about
+  360 KB in Defeatist's build. If the launcher no longer fits,
+  `CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT` and `..._CHECKS_SILENT`
+  saved 226 KB on Defeatist's (its 8095).
+  Not built (no ESP-IDF in the session), not on a Tab5. What to look for:
+  Defeatist's ELF starting from the menu, and a FLAC track playing
+  (`AUD_Dec_Parse: FLAC sample_rate ...` then `first sound`).
