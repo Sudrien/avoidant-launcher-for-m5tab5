@@ -681,3 +681,20 @@ the later one is what happened.
   main task. This run had USB Ethernet and no Wi-Fi; Wi-Fi's DMA pool comes
   out of the same RAM, so Defeatist streaming over Wi-Fi under Avoidant is
   the run to make next, watching DMA min-ever and `allocation failures`.
+- **0051** m5tab5: Wi-Fi networks on the Tab5's own screen. The gear's
+  Wi-Fi button opens a page of the saved networks (the list the apps share,
+  `defeatist` namespace) with Forget on each, Add a network, and 0045's
+  import, moved there. Add is Defeatist's setup page on the glass, typed
+  with feckless_keyboard: the scan's networks strongest first as its
+  `<select>` (one row a name, open ones refused, saved ones marked), "Other
+  or hidden network" with a name field, Password with Show, a space bar.
+  Tried before it is kept, in wifijoin_try()'s order -- the derived key
+  first, the passphrase on refusal or on a WPA3-capable network -- then
+  Done or Add another. Radio start, scan and join run on a task of their
+  own behind a spinner; the radio goes back down on Back if it was down.
+  Pins move to `v0.8.7` for feckless_keyboard (v0.8.5+); **`idf_component.yml`
+  changed, `dependencies.lock` not updated.** Not built with ESP-IDF; wifiui.c
+  compiled on the host at -O2 -Wall -Wextra -Werror and its screens drawn
+  through feckless_graphics_handler's real gfx.c with scripted taps. Not on a
+  Tab5. What to look for: `wifiui: trying <ssid> (...)` then
+  `wifiui: saved <ssid> as PSK|passphrase`.
