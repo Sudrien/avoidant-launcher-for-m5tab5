@@ -500,6 +500,7 @@ static void run_elf(const entry_t *e)
         return;
     }
 
+    clock_net_stop();      /* 0053: the app starts with the radio down */
     ESP_LOGI(TAG, "running %s (%u bytes)", path, (unsigned)len);
     int ret = feckless_abi_run(image, len);
     if (ret == 0) {
@@ -812,5 +813,6 @@ void app_main(void)
     PHASE("autoboot");
     autoboot();
     PHASE("menu");
+    clock_net_start();      /* 0053: autoboot did not take us out */
     menu();
 }

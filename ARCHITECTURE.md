@@ -706,3 +706,20 @@ the later one is what happened.
   over. *On a Tab5,* 0051 confirmed working: networks added and saved from
   the screen. For this patch, look for `clock: RTC to system clock: ...` at
   boot and `clock: NTP to RTC: ... UTC` after a join. Not built with ESP-IDF.
+- **0053** m5tab5: a saved network at the menu, down before an app. When
+  the menu comes up (autoboot did not take over) and a network is saved,
+  `clock.c`'s task starts the radio, scans, joins the strongest saved
+  network in range (the next on refusal) and waits up to 15 s for NTP,
+  whose reply goes to the RTC (0052). The radio stays up behind the menu.
+  `install_boot()` -- the menu's, autoboot's and the console's -- and
+  `run_elf()` call `clock_net_stop()` first: the boot join is stopped after
+  its current step (a join is up to about 30 s) and the radio is taken down,
+  so every app starts with it off. The Wi-Fi page waits for that join
+  before it scans. Avoidant's hooks now keep the network component's own
+  background join out (`wifi_enabled` false, `portal_running` true); an app
+  setting its own hooks gets it back.
+  *On a Tab5,* 0052's boot half: `tab5_rtc: RX8130 at 0x32 (backup 0x30)`,
+  `clock: RTC to system clock: 2026-11-02 02:52:54 UTC`. NTP not yet seen.
+  For this patch look for `clock: boot join: <ssid> joined`, `clock: NTP to
+  RTC: ...`, and `clock: radio down for the app` before an app's banner.
+  Not built with ESP-IDF.

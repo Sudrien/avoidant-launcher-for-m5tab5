@@ -33,6 +33,7 @@
 #include "wifi.h"
 #include "wifistore.h"
 
+#include "clock.h"           /* 0053 */
 #include "limport.h"
 #include "limport_core.h"    /* li_classify() */
 
@@ -628,6 +629,7 @@ static void import_wifi(void)
 
 void wifiui_page(void)
 {
+    clock_net_settle();     /* 0053: the boot join out of the way */
     const bool was_up = wifi_up();
     s_seen_n = -1;
     const int add_y = LIST_Y + WIFISTORE_MAX * SROW_H + 30, add_h = 90;

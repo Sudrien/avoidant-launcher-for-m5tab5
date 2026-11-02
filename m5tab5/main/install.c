@@ -21,6 +21,7 @@
 #include "nvs.h"
 
 #include "vol.h"
+#include "clock.h"     /* 0053 */
 
 static const char *TAG = "install";
 
@@ -236,5 +237,6 @@ esp_err_t install_boot(void)
      * at the reset after, unless the app confirms itself. */
     esp_err_t e = esp_ota_set_boot_partition(p);
     if (e != ESP_OK) return e;
+    clock_net_stop();       /* 0053: every way to app2, the console's too */
     esp_restart();
 }

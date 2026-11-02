@@ -16,3 +16,17 @@
 
 /* After tab5io_init() and feckless_net_start(). */
 void clock_start(void);
+
+/*
+ * 0053: join the strongest saved network in range on a task of its own,
+ * for NTP (and so the RTC), and leave it up while the menu is shown.
+ * Nothing if no network is saved or the radio is already up.
+ */
+void clock_net_start(void);
+
+/* Stop the boot join after the step it is in -- a join is up to about
+ * thirty seconds -- and wait for it. The radio is left as it is. */
+void clock_net_settle(void);
+
+/* Settle, then the radio down: before an app gets the board. */
+void clock_net_stop(void);
