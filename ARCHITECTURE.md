@@ -698,3 +698,11 @@ the later one is what happened.
   through feckless_graphics_handler's real gfx.c with scripted taps. Not on a
   Tab5. What to look for: `wifiui: trying <ssid> (...)` then
   `wifiui: saved <ssid> as PSK|passphrase`.
+- **0052** m5tab5: NTP to the RTC. `clock.c` sets the system clock from the
+  RX8130 at boot (when it reads 2026 or later), and sets Avoidant's network
+  hooks: SNTP on (the NIST servers in feckless_network_handler's wifi.c)
+  once Wi-Fi joins or a cable gets an address, and each reply written to
+  the RTC with rtc8130_write(). An .elf app that sets its own hooks takes
+  over. *On a Tab5,* 0051 confirmed working: networks added and saved from
+  the screen. For this patch, look for `clock: RTC to system clock: ...` at
+  boot and `clock: NTP to RTC: ... UTC` after a join. Not built with ESP-IDF.

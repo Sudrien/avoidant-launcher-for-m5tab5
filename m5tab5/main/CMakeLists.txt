@@ -14,6 +14,7 @@ idf_component_register(
          "settings.c"   # 0028
          "limport.c" "limport_core.c"   # 0045
          "wifiui.c"     # 0051
+         "clock.c"      # 0052
     INCLUDE_DIRS "."
     REQUIRES app_update esp_app_format spi_flash esp_partition bootloader_support nvs_flash
              fatfs sdmmc esp_driver_sdmmc esp_driver_usb_serial_jtag vfs

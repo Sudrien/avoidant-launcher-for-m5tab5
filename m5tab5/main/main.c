@@ -39,6 +39,7 @@
 #include "tab5io.h"
 #include "touch.h"
 
+#include "clock.h"           /* 0052 */
 #include "console.h"
 #include "elfrun.h"
 #include "feckless_abi.h"
@@ -803,6 +804,7 @@ void app_main(void)
         };
         feckless_net_start(&net);
     }
+    clock_start();      /* 0052: the RTC to the clock, and NTP to the RTC */
     usbhost_start();
 
     if (console_start() != ESP_OK) ESP_LOGE(TAG, "no serial console");
