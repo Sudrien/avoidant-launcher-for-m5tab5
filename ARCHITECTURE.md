@@ -730,3 +730,11 @@ the later one is what happened.
   drop the C6's batched reads and every TLS certificate with them.
   **`idf_component.yml` changed, `dependencies.lock` not updated:** read
   the lock diff after the re-resolve; esp_hosted should stay 3.0.10. Not built.
+- **0055** m5tab5: list NVS on the console at boot. Right after
+  `nvsh_init()`, `nvsh_log(NULL, true)` (feckless-libs' 9005, in 0054's
+  v0.9.4): every namespace and key with its type, text values escaped and
+  cut at 160 bytes, binary ones as size and FNV-1a hash, then the used and
+  free entry counts. Secrets included -- the warning line says not to
+  share the log. The `nvs_handler` tag is raised to INFO for it and put back
+  to the console's level. Not built. What to look for: `NVS contents
+  follow, secrets included`, then `NVS: <n> key(s)`.

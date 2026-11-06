@@ -767,6 +767,15 @@ void app_main(void)
      * ABI's nvs section hands them its calls but not nvsh_init(). */
     nvsh_init();
 
+    /* 0055: everything in NVS, every app's namespace, on the console at
+     * boot -- text values shown (escaped, 160 bytes at most), binary ones
+     * as a size and a hash -- so a setting that went missing can be told
+     * from one that is there under another name. The listing is INFO;
+     * its tag is raised for it and put back to the console's level. */
+    esp_log_level_set("nvs_handler", ESP_LOG_INFO);
+    nvsh_log(NULL, true);
+    esp_log_level_set("nvs_handler", settings_log_level());
+
     ESP_ERROR_CHECK(tab5io_init());     /* bus, expanders, LCD_RST/TP_RST released */
     esp_lcd_panel_handle_t panel;
     ESP_ERROR_CHECK(lcd_init(&panel));
