@@ -738,3 +738,8 @@ the later one is what happened.
   share the log. The `nvs_handler` tag is raised to INFO for it and put back
   to the console's level. Not built. What to look for: `NVS contents
   follow, secrets included`, then `NVS: <n> key(s)`.
+- **0056** m5tab5: the `===` line after the NVS listing. 0026's
+  `=== Avoidant ===` banner moves below 0055's `nvsh_log()`, so the
+  listing (secrets included) is above the line a log is read and shared
+  from, and nothing of it below. Not built. What to look for: `NVS:
+  <n> key(s)` before `=== Avoidant ===`, not after.

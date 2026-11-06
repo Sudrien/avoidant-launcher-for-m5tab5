@@ -749,19 +749,6 @@ static void autoboot(void)
 
 void app_main(void)
 {
-    /*
-     * 0026: the line to start reading a log from, as Lothesome's 0005
-     * has it -- above is the ROM, the bootloader and IDF's startup, below
-     * is this program -- with what it was built from, so a log can be
-     * matched to a tree, and the ABI its .elf apps must be built for.
-     * A warning, so the console's WARN level lets it through.
-     */
-    {
-        const esp_app_desc_t *d = esp_app_get_description();
-        ESP_LOGW(TAG, "=== Avoidant === %s, IDF %s, built %s %s, feckless ABI v%d",
-                 d->version, d->idf_ver, d->date, d->time, FECKLESS_ABI_VERSION);
-    }
-
     /* 0035: NVS through feckless_nvs_handler, which erases a partition
      * it cannot use, as this did -- and marks NVS up for the apps: the
      * ABI's nvs section hands them its calls but not nvsh_init(). */
@@ -775,6 +762,21 @@ void app_main(void)
     esp_log_level_set("nvs_handler", ESP_LOG_INFO);
     nvsh_log(NULL, true);
     esp_log_level_set("nvs_handler", settings_log_level());
+
+    /*
+     * 0026: the line to start reading a log from, as Lothesome's 0005
+     * has it -- above is the ROM, the bootloader and IDF's startup, below
+     * is this program -- with what it was built from, so a log can be
+     * matched to a tree, and the ABI its .elf apps must be built for.
+     * A warning, so the console's WARN level lets it through. 0056: after
+     * 0055's NVS listing, which holds secrets, so everything from this
+     * line down can be shared and nothing above it should be.
+     */
+    {
+        const esp_app_desc_t *d = esp_app_get_description();
+        ESP_LOGW(TAG, "=== Avoidant === %s, IDF %s, built %s %s, feckless ABI v%d",
+                 d->version, d->idf_ver, d->date, d->time, FECKLESS_ABI_VERSION);
+    }
 
     ESP_ERROR_CHECK(tab5io_init());     /* bus, expanders, LCD_RST/TP_RST released */
     esp_lcd_panel_handle_t panel;
