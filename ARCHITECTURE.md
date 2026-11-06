@@ -723,3 +723,10 @@ the later one is what happened.
   For this patch look for `clock: boot join: <ssid> joined`, `clock: NTP to
   RTC: ...`, and `clock: radio down for the app` before an app's banner.
   Not built with ESP-IDF.
+- **0054** feckless-libs v0.9.4, and esp_hosted held below 3.1.0. A
+  manifest-only patch: every feckless pin v0.8.7 -> v0.9.4 (feckless_fetch,
+  9003/9004; NVS listing, 9005), and `espressif/esp_hosted: ">=3.0.7,<3.1.0"`
+  as in Defeatist's 8097 -- 3.1.0's fixed 1536-byte SDIO staging buffers
+  drop the C6's batched reads and every TLS certificate with them.
+  **`idf_component.yml` changed, `dependencies.lock` not updated:** read
+  the lock diff after the re-resolve; esp_hosted should stay 3.0.10. Not built.
