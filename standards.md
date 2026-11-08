@@ -51,6 +51,8 @@ Avoidant treats it as one of its own.
 - **If external storage is supported, exFAT is.** FAT32 alone is not
   enough.
 
+- CONFIG_LIBC_PICOLIBC=y
+
 - **A library list in the firmware.** Every library it is built with,
   with its version and licence, generated during the build (not kept by
   hand) and viewable on the device.
