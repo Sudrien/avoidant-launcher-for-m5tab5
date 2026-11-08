@@ -11,6 +11,7 @@ idf_component_register(
          "limport.c" "limport_core.c"   # 0045
          "wifiui.c"     # 0051
          "clock.c"      # 0052
+         "elfsym.c"     # u-avoidant-0001
     INCLUDE_DIRS "."
     REQUIRES app_update esp_app_format spi_flash esp_partition bootloader_support nvs_flash
              fatfs sdmmc esp_driver_sdmmc esp_driver_usb_serial_jtag vfs
@@ -23,4 +24,5 @@ idf_component_register(
              feckless_abi_audio                      # 0049
              feckless_network_handler                # 0045: wifistore_save()
              feckless_keyboard                       # 0051
+             feckless_umode feckless_box_calls       # u-avoidant-0001: apps in a box
 )

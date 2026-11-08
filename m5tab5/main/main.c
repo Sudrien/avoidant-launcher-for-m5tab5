@@ -41,7 +41,11 @@
 #include "clock.h"           /* 0052 */
 #include "console.h"
 #include "elfrun.h"
+#include "elfsym.h"           /* u-avoidant-0001 */
 #include "feckless_abi.h"
+#include "feckless_box_calls.h"    /* u-avoidant-0001 */
+#include "feckless_umode_idf.h"
+#include "feckless_umode_load.h"
 #include "install.h"
 #include "libversions.h"     /* 0028: generated, cmake/libversions.cmake */
 #include "settings.h"        /* 0028 */
@@ -403,6 +407,99 @@ static void install_and_boot(const entry_t *e)
     message("Not booted", err, C_BAD);
 }
 
+/* ---- run an .elf in a box (u-avoidant-0001) ----------------------------- */
+
+/*
+ * An .elf built with feckless_abi_box_elf() imports feckless_abi_box_v1
+ * (elfsym.c). It runs in RISC-V user mode in one block of PSRAM, the box,
+ * which the PMP grants it and nothing else; every call it makes outside the
+ * box is an ecall that feckless_box_calls answers, checking each pointer
+ * (feckless-libs' umode branch, u-feckless-0001..0008). It runs on this task,
+ * as a trusted app does, but this firmware stays itself: when the app ends --
+ * returns, exits, faults, overflows its stack, or gives up on an
+ * ESP_ERROR_CHECK -- the box is taken away and the menu comes back.
+ */
+
+#define BOX_STACK       (64 * 1024)
+#define BOX_MARGIN      (2 * 1024 * 1024)      /* PSRAM left to this firmware */
+#define BOX_MIN         (1 * 1024 * 1024)
+#define BOX_MAX         (16 * 1024 * 1024)
+
+/* How the app ended, for the message. */
+static void box_end_text(const feckless_umode_end_t *end, char *out, size_t len)
+{
+    switch (end->reason) {
+    case FECKLESS_UMODE_END_EXIT:
+        snprintf(out, len, "The app ended (status %u).", (unsigned)end->status);
+        break;
+    case FECKLESS_UMODE_END_FAULT:
+        snprintf(out, len, "The app stopped: %s at 0x%08x (0x%08x). The box kept it from the rest.",
+                 feckless_umode_cause_name(end->mcause), (unsigned)end->pc, (unsigned)end->mtval);
+        break;
+    case FECKLESS_UMODE_END_STACK:
+        snprintf(out, len, "The app ran out of stack at 0x%08x.", (unsigned)end->sp_pc);
+        break;
+    case FECKLESS_UMODE_END_KILLED:
+        snprintf(out, len, "The app gave up. The log says why.");
+        break;
+    default:
+        snprintf(out, len, "The app was not run.");
+        break;
+    }
+}
+
+/* Takes image; frees it either way. */
+static void run_boxed(const char *name, uint8_t *image, size_t len)
+{
+    /* The stack guard's one interrupt source, out of every core's routing,
+     * once and only now: from here ESP-IDF no longer panics on a stack
+     * overflow in this firmware, the price of a window (feckless_umode_idf.h). */
+    static bool unrouted;
+    if (!unrouted) {
+        feckless_umode_guard_unroute();
+        unrouted = true;
+    }
+
+    /* The box: the largest PSRAM block less a margin for this firmware. */
+    size_t big = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+    size_t box = big > BOX_MARGIN ? big - BOX_MARGIN : 0;
+    if (box > BOX_MAX) box = BOX_MAX;
+    box &= ~(size_t)63;
+    char err[160];
+    if (box < BOX_MIN) {
+        heap_caps_free(image);
+        snprintf(err, sizeof err, "No room for a box: %u KB of PSRAM in one block.", (unsigned)(big / 1024));
+        message("Not run", err, C_BAD);
+        return;
+    }
+
+    uint32_t n;
+    const feckless_umode_call_t *calls = feckless_box_calls_v1(&n);
+    feckless_umode_app_t *app = NULL;
+    const esp_err_t e = feckless_umode_load(image, len, calls, n, (uint32_t)box, BOX_STACK, &app);
+    heap_caps_free(image);                      /* relocated into the box, or not at all */
+    if (e != ESP_OK) {
+        snprintf(err, sizeof err, "It would not load in a box (%s). The log names what it lacked.",
+                 esp_err_to_name(e));
+        message("Not run", err, C_BAD);
+        return;
+    }
+
+    clock_net_stop();                           /* 0053: the app starts with the radio down */
+    ESP_LOGI(TAG, "running %s in a box of %u KB", name, (unsigned)(box / 1024));
+    const feckless_umode_end_t end = feckless_umode_app_run(app);
+    const feckless_umode_window_t *w = feckless_umode_app_window(app);
+    ESP_LOGW(TAG, "%s: ended (reason %d), %u calls, %u interrupts, %u core changes", name,
+             (int)end.reason, (unsigned)w->syscalls, (unsigned)w->irqs, (unsigned)w->migrations);
+    feckless_umode_unload(app);
+    feckless_box_calls_end();                   /* its files, its storage lease and hold */
+
+    lcd_backlight_set(BRIGHTNESS);              /* the app may have set its own */
+    clock_net_start();
+    box_end_text(&end, err, sizeof err);
+    message(name, err, end.reason == FECKLESS_UMODE_END_EXIT ? C_TEXT : C_BAD);
+}
+
 /* ---- run an .elf (0023) -------------------------------------------------- */
 
 /*
@@ -450,6 +547,11 @@ static void run_elf(const entry_t *e)
     char err[128];
     if (elfrun_load(path, &image, &len, draw_progress, (void *)e->name, err, sizeof err) != ESP_OK) {
         message("Not run", err, C_BAD);
+        return;
+    }
+
+    if (elfsym_imports(image, len, ELFSYM_BOX_MARK)) {     /* u-avoidant-0001 */
+        run_boxed(e->name, image, len);
         return;
     }
 

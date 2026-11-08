@@ -181,3 +181,13 @@ CONFIG_LWIP_MAX_SOCKETS=28
 # passes and the first app that starts a server is told ESP_ERR_NOT_SUPPORTED
 # with a log line saying why.
 CONFIG_MBEDTLS_X509_CREATE_C=y
+
+# u-avoidant-0001: .elf apps in a box (feckless_umode, feckless-libs' umode
+# branch). ESP-IDF's region protection programs the PMP and locks every
+# entry it sets, one of them giving user mode read and write over internal
+# DRAM; a locked entry cannot be changed, so no box could be granted. Off,
+# bootloader_init_mem() (bootloader and app alike, IDF 6.1) leaves the PMP in
+# its reset state, and feckless_umode grants a box and nothing else. Lost:
+# the PMA entries that fault on unmapped gaps (and on 0x0) -- a debugging aid.
+# feckless_umode stops the configure if this is on. rm sdkconfig.
+CONFIG_BOOTLOADER_REGION_PROTECTION_ENABLE=n

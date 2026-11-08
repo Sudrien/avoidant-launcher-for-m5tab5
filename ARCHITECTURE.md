@@ -790,3 +790,63 @@ the later one is what happened.
   before the next build; `grep LIBC_PICOLIBC sdkconfig` shows `=y` when it
   took (nothing is logged). Not built.
 
+
+## The `umode` branch
+
+.elf apps run in RISC-V user mode, each in one block of PSRAM that the PMP
+grants it and nothing else, on feckless-libs' `umode` branch
+(`u-feckless-0001` to `0008`: `feckless_umode`, `feckless_box_libc`,
+`feckless_box_calls`). Numbered `u-avoidant-NNNN` (CLAUDE.md). The test is
+Spurious StarDict Reader's .elf, built with `feckless_abi_box_elf()`.
+Trusted (ABI v1) apps run as before.
+
+### u-avoidant-0001 -- apps in a box
+
+- `main/elfsym.c` (no ESP-IDF): does an ELF's `.dynsym` hold an undefined
+  `feckless_abi_box_v1`? That is the mark `feckless_abi_require_box()` puts
+  in a boxed app. Every offset is checked against the image's length.
+- `run_elf()`: an ELF with the mark goes to `run_boxed()`. The box is the
+  largest free PSRAM block less 2 MB for this firmware, at most 16 MB, at
+  least 1 MB, with a 64 KB stack; `feckless_umode_load()` relocates the app
+  into it with `feckless_box_calls_v1()`'s table, the image is freed, and
+  `feckless_umode_app_run()` runs its constructors and app_main on this task.
+  When it ends -- returns, exits, faults, overflows its stack, or gives up on
+  an `ESP_ERROR_CHECK` -- it is unloaded, `feckless_box_calls_end()` closes its
+  files and gives back its storage lease and hold, the backlight and the
+  clock's network are put back, a message says how it ended, and **the menu
+  comes back**: unlike a trusted app, a boxed one never had this firmware's
+  memory. The log line `<app>: ended (reason N), C calls, I interrupts, M
+  core changes` is the record of a run.
+- The stack guard's interrupt is un-routed (`feckless_umode_guard_unroute()`)
+  the first time a boxed app runs, not at boot: until then ESP-IDF still
+  panics on a stack overflow in this firmware.
+- `sdkconfig.defaults`: `CONFIG_BOOTLOADER_REGION_PROTECTION_ENABLE=n`.
+  Checked in IDF 6.1's source: `bootloader_init_mem()` (bootloader_mem.c),
+  called by the bootloader and by the app's `cpu_start.c`, calls
+  `esp_cpu_configure_region_protection()` only under it. **`rm sdkconfig`.**
+  `grep REGION_PROTECTION sdkconfig` shows `# ... is not set` when it took.
+- `main/idf_component.yml`: every feckless pin `v0.10.3` -> `umode`, the
+  branch, and `feckless_umode` and `feckless_box_calls` added.
+  **`dependencies.lock` is not updated here**: the next build's re-resolve
+  writes it, with the branch's commit for each.
+
+*Checked:* `test/elfsym` on the host (`make -C m5tab5/test/elfsym`) under ASan
+and UBSan: an ELF built in memory, the mark found undefined and not when
+defined, names that are a prefix or longer refused, and eleven kinds of
+damage answered false. And on two ELFs linked by riscv32-esp-elf 15.2.0 with
+`project_elf()`'s link line and strip (`--strip-all`, then `--strip-unneeded
+--remove-section=.dynamic`): the boxed one reads `boxed`, the trusted one
+`trusted` (`./elfsymtest <elf>...`).
+
+*Not checked:* an ESP-IDF build of any of it; a board. Nothing of
+feckless-libs' umode branch has been built with ESP-IDF either.
+
+*What to look for on a Tab5*, with Spurious's boxed .elf (its own patch):
+`feckless_umode: app in its box at 0x48..., N KB, 73 calls` (no `PMP read back
+differently` before it); `avoidant: running spurious_reader.app.elf in a box`;
+Spurious's own log lines, tagged as it tags them; the dictionary opening
+(`fast seek, N of M table items`); and on leaving it, `ended (reason 0)` and
+the menu. If the box faults at its first PSRAM access with a load or store
+access fault, look first at `bootloader_init_mem()`'s APM setup (every master
+in TEE mode on targets with `SOC_APM_SUPPORT_TEE_PERI_ACCESS_CTRL`), which
+the protected-mode sample, on IDF 5.5.4, did not meet.
