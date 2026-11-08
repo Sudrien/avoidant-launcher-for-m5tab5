@@ -7,10 +7,11 @@ cmake_minimum_required(VERSION 3.16)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-# 0046: the options only IDF 6 has, after the shared defaults. See the top
-# of sdkconfig.defaults.idf6.
-if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
-    set(SDKCONFIG_DEFAULTS "sdkconfig.defaults;sdkconfig.defaults.idf6")
+# 0057: ESP-IDF 6.1 only. The feckless libraries dropped 5.x at v0.10.0,
+# and the options that only IDF 6 has are in sdkconfig.defaults now.
+if("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_LESS "6.1")
+    message(FATAL_ERROR "Avoidant builds with ESP-IDF 6.1 or later "
+                        "(this is ${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR})")
 endif()
 
 project(avoidant)

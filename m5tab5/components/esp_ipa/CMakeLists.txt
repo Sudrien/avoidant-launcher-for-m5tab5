@@ -23,20 +23,15 @@ else()
     set(lib_name "libesp_ipa.a")
 endif()
 
-if("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_GREATER_EQUAL "6.0")
-    set(ipa_lib_version "v6.0+")
+# 0057: ESP-IDF 6.1 only; the v5.4- and v5.5 blobs are gone.
+set(ipa_lib_version "v6.0+")
 
-    if (CONFIG_LIBC_NEWLIB)
-        if (CONFIG_ESP32P4_SELECTS_REV_LESS_V3)
-            set(lib_name "libesp_ipa_p4_less_v3_newlib.a")
-        else()
-            set(lib_name "libesp_ipa_newlib.a")
-        endif()
+if (CONFIG_LIBC_NEWLIB)
+    if (CONFIG_ESP32P4_SELECTS_REV_LESS_V3)
+        set(lib_name "libesp_ipa_p4_less_v3_newlib.a")
+    else()
+        set(lib_name "libesp_ipa_newlib.a")
     endif()
-elseif("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_EQUAL "5.5")
-    set(ipa_lib_version "v5.5")
-else()
-    set(ipa_lib_version "v5.4-")
 endif()
 
 add_prebuilt_library(prebuilt "lib/${idf_target}/${ipa_lib_version}/${lib_name}"

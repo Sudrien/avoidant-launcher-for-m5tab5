@@ -1,12 +1,8 @@
 # SPDX-License-Identifier: MIT
 
-# console.c reads the USB-Serial/JTAG's FIFO directly during a transfer;
-# its hal header moved from hal to esp_hal_usb in IDF 6.
-if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
-    set(DUP_HAL_USB esp_hal_usb)
-else()
-    set(DUP_HAL_USB hal)
-endif()
+# console.c reads the USB-Serial/JTAG's FIFO directly during a transfer
+# (its hal header is esp_hal_usb since IDF 6).
+set(DUP_HAL_USB esp_hal_usb)
 
 idf_component_register(
     SRCS "main.c" "install.c" "console.c" "vol.c"

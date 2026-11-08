@@ -68,7 +68,7 @@ next patch's entry, not into the old one.
 
 ## m5tab5/
 
-ESP-IDF (>= 5.4.2), on the feckless components from
+ESP-IDF (>= 6.1), on the feckless components from
 feckless-libs-for-m5tab5 -- `feckless_abi`, `feckless_drivers`,
 `feckless_graphics_handler`, `feckless_storage_handler` -- all named at
 one tag in `main/idf_component.yml` (0030).

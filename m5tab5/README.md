@@ -123,7 +123,7 @@ Avoidant itself, so a prompt would protect nothing.
 
 ## Building
 
-ESP-IDF 5.4.2 or later:
+ESP-IDF 6.1 or later:
 
     idf.py set-target esp32p4
     idf.py build

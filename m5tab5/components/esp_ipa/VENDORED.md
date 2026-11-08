@@ -27,3 +27,6 @@ read the dependencies.lock diff.
 
 Copied into Avoidant from Unprofitable Mahjong's m5tab5/components/esp_ipa
 (Avoidant's 0036), unchanged; drop it here when Mahjong does.
+
+**0057: ESP-IDF 6.1 only.** The `lib/esp32p4/v5.4-` and `v5.5` blobs and
+their branches in `CMakeLists.txt` are removed, and `idf:` is `>=6.1`.

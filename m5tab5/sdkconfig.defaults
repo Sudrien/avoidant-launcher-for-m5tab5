@@ -162,3 +162,15 @@ CONFIG_MBEDTLS_HARDWARE_ECDSA_VERIFY=n
 # Every app's sockets are this firmware's: Defeatist wants 28 (its
 # sdkconfig.defaults), the section recommends 16 at least.
 CONFIG_LWIP_MAX_SOCKETS=28
+
+# 0057: from sdkconfig.defaults.idf6, which is gone with IDF 5.x.
+# ---------------------------------------------------------------------------
+# X.509 CERTIFICATE WRITING, FOR THE DEVICE'S HTTPS CERTIFICATE.
+#
+# feckless_network_handler's feckless_cert.c writes the self-signed
+# certificate the network section's feckless_https_start() serves HTTPS
+# with. IDF 6 puts Mbed TLS's X.509 writer behind
+# this, default off. Without it feckless_cert.c is two stubs: the build
+# passes and the first app that starts a server is told ESP_ERR_NOT_SUPPORTED
+# with a log line saying why.
+CONFIG_MBEDTLS_X509_CREATE_C=y

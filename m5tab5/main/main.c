@@ -12,12 +12,10 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/stat.h>
 
 #include "esp_app_desc.h"
 #include "esp_heap_caps.h"
@@ -30,6 +28,7 @@
 #include "nvs_handler.h"     /* 0035 */
 
 #include "storage.h"
+#include "storage_list.h"    /* 0057 */
 #include "storage_io.h"
 #include "usbhost.h"
 #include "feckless_net.h"     /* 0043 */
@@ -262,17 +261,19 @@ static void settings_page(void)
 
 /* ---- the card listing --------------------------------------------------- */
 
-typedef struct {
-    char *name;
-    bool dir;
-    long size;
-} entry_t;
-
-static entry_t *s_ents;
-static int s_n;
+/* 0057: the listing is feckless_storage_handler's storage_list.h (9011):
+ * one pass through FatFs, dotfiles and "System Volume Information" left
+ * out, folders first and then by name. What is Avoidant's is the filter. */
+static storage_list_t s_list;
+#define s_ents (s_list.ents)
+#define s_n    (s_list.n)
+typedef storage_ent_t entry_t;
 static int s_hidden;     /* .bin files here that are not apps */
 /* "" is the list of volumes; otherwise a directory on one. */
 static char s_dir[512] = "";
+
+#define KIND_BIN 1
+#define KIND_ELF 2
 
 static bool is_bin(const char *n)
 {
@@ -286,99 +287,51 @@ static bool is_elf(const char *n)
     return l > 4 && !strcasecmp(n + l - 4, ".elf");
 }
 
-static int ent_cmp(const void *a, const void *b)
+/* Folders, and the .bin and .elf files that install or run would take: a
+ * project's settings saved as .bin, or another chip's firmware, is left
+ * out here rather than refused after "Install?". Called with the volume
+ * held. */
+static int list_filter(const char *dir, const storage_ent_t *e, void *ctx)
 {
-    const entry_t *x = a, *y = b;
-    if (x->dir != y->dir) return x->dir ? -1 : 1;
-    return strcasecmp(x->name, y->name);
-}
-
-static void free_list(void)
-{
-    for (int i = 0; i < s_n; i++) free(s_ents[i].name);
-    free(s_ents);
-    s_ents = NULL;
-    s_n = 0;
-}
-
-/* Folders and .bin files in s_dir, folders first. Hidden ones (a leading
- * dot, macOS's ._ files among them) are left out. */
-static bool add(const char *name, bool dir, long size)
-{
-    static int cap;
-    if (s_n == 0) cap = 0;
-    if (s_n == cap) {
-        int c = cap ? cap * 2 : 32;
-        entry_t *n = realloc(s_ents, c * sizeof *n);
-        if (!n) return false;
-        s_ents = n;
-        cap = c;
+    (void)ctx;
+    if (e->is_dir) return 0;
+    const bool elf = is_elf(e->name);
+    if (!elf && !is_bin(e->name)) return STORAGE_LIST_SKIP;
+    char full[800], why[96];
+    snprintf(full, sizeof full, "%s/%s", dir, e->name);
+    if (elf) {
+        /* 0023: an .elf that is not a Tab5 app is only logged; s_hidden
+         * counts .bins */
+        if (!elfrun_probe(full, why, sizeof why)) {
+            PHASE("not listed: %s (%s)", e->name, why);
+            return STORAGE_LIST_SKIP;
+        }
+        return KIND_ELF;
     }
-    s_ents[s_n].name = strdup(name);
-    if (!s_ents[s_n].name) return false;
-    s_ents[s_n].dir = dir;
-    s_ents[s_n].size = size;
-    s_n++;
-    return true;
+    if (!install_probe(full, why, sizeof why)) {
+        PHASE("not listed: %s (%s)", e->name, why);
+        s_hidden++;
+        return STORAGE_LIST_SKIP;
+    }
+    return KIND_BIN;
 }
 
 static void scan(void)
 {
-    free_list();
     s_hidden = 0;
     if (!s_dir[0]) {
         /* the volumes, in storage_id_t order: the card, then the drive */
-        for (int i = 0; i < STORAGE_COUNT; i++)
-            if (storage_present((storage_id_t)i)) add(storage_mount_path((storage_id_t)i) + 1, true, -1);
+        storage_list_volumes(&s_list);
         return;
     }
     work_lock();
-    storage_id_t vid;
-    if (!vol_hold(s_dir, &vid)) {
+    storage_list_err_t err = storage_list_read(&s_list, s_dir, STORAGE_SORT_NAME, list_filter, NULL);
+    work_unlock();
+    if (err == STORAGE_LIST_NO_DIR) {
         /* it went away while we were in it */
-        vol_release(vid);
-        work_unlock();
         s_dir[0] = '\0';
         scan();
-        return;
     }
-    DIR *d = opendir(s_dir);
-    if (d) {
-        struct dirent *e;
-        while ((e = readdir(d)) != NULL) {
-            bool dir = e->d_type == DT_DIR;
-            if (e->d_name[0] == '.' || (!dir && !is_bin(e->d_name) && !is_elf(e->d_name))) continue;
-            if (!strcasecmp(e->d_name, "System Volume Information")) continue;
-            long size = -1;
-            if (!dir) {
-                char full[800];
-                struct stat st;
-                snprintf(full, sizeof full, "%s/%s", s_dir, e->d_name);
-                if (stat(full, &st) == 0) size = (long)st.st_size;
-                /* only what install would take: a project's settings
-                 * saved as .bin, or another chip's firmware, is left out
-                 * here rather than refused after "Install?" */
-                char why[96];
-                if (is_elf(e->d_name)) {
-                    /* 0023: an .elf that is not a Tab5 app is only logged;
-                     * s_hidden counts .bins */
-                    if (!elfrun_probe(full, why, sizeof why)) {
-                        PHASE("not listed: %s (%s)", e->d_name, why);
-                        continue;
-                    }
-                } else if (!install_probe(full, why, sizeof why)) {
-                    PHASE("not listed: %s (%s)", e->d_name, why);
-                    s_hidden++;
-                    continue;
-                }
-            }
-            if (!add(e->d_name, dir, size)) break;
-        }
-        closedir(d);
-    }
-    vol_release(vid);
-    work_unlock();
-    if (s_n) qsort(s_ents, s_n, sizeof *s_ents, ent_cmp);
 }
 
 static void fmt_size(char *out, size_t n, long size)
@@ -412,7 +365,7 @@ static void install_and_boot(const entry_t *e)
 {
     char path[800], size[24];
     snprintf(path, sizeof path, "%s/%s", s_dir, e->name);
-    fmt_size(size, sizeof size, e->size);
+    fmt_size(size, sizeof size, (long)e->size);
 
     /* ask */
     gfx_fill_rect(0, 0, W, H, C_BG);
@@ -468,7 +421,7 @@ static void run_elf(const entry_t *e)
 {
     char path[800], size[24];
     snprintf(path, sizeof path, "%s/%s", s_dir, e->name);
-    fmt_size(size, sizeof size, e->size);
+    fmt_size(size, sizeof size, (long)e->size);
 
     gfx_fill_rect(0, 0, W, H, C_BG);
     header("Run?", path);
@@ -613,20 +566,18 @@ static void menu(void)
                 text(PAD, y + (ROW_H - TEXT_H) / 2, s, W - 2 * PAD, C_TEXT);
             } else {
                 const entry_t *e = &s_ents[i];
-                if (e->dir) {
+                if (e->is_dir) {
                     char s[300];
                     if (!s_dir[0]) {
                         /* a volume: its label, "microSD" or "USB" */
-                        char mp[8];
-                        snprintf(mp, sizeof mp, "/%s", e->name);
-                        snprintf(s, sizeof s, "%s", storage_label(storage_of_path(mp)));
+                        snprintf(s, sizeof s, "%s", e->label ? e->label : e->name);
                     } else {
                         snprintf(s, sizeof s, "%s/", e->name);
                     }
                     text(PAD, y + (ROW_H - TEXT_H) / 2, s, W - 2 * PAD, C_DIR);
                 } else {
                     char sz[24];
-                    fmt_size(sz, sizeof sz, e->size);
+                    fmt_size(sz, sizeof sz, (long)e->size);
                     int sw = gfx_text_w(sz, SCALE);
                     text(PAD, y + (ROW_H - TEXT_H) / 2, e->name, W - 3 * PAD - sw,
                          is_elf(e->name) ? C_ELF : C_BIN);
@@ -680,7 +631,7 @@ static void menu(void)
             install_boot();
             message("Not booted", "app2 could not be marked to boot.", C_BAD);
         } else if (i >= 0 && i < s_n) {
-            if (s_ents[i].dir) {
+            if (s_ents[i].is_dir) {
                 size_t l = strlen(s_dir);   /* "" + "/sd", or "/sd" + "/bins" */
                 if (l + 1 + strlen(s_ents[i].name) < sizeof s_dir) {
                     snprintf(s_dir + l, sizeof s_dir - l, "/%s", s_ents[i].name);

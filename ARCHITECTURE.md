@@ -743,3 +743,28 @@ the later one is what happened.
   listing (secrets included) is above the line a log is read and shared
   from, and nothing of it below. Not built. What to look for: `NVS:
   <n> key(s)` before `=== Avoidant ===`, not after.
+- **0057** feckless-libs v0.10.0, ESP-IDF 6.1 only, and feckless-libs' file
+  listing. Every feckless pin v0.9.4 -> v0.10.0 (`main/idf_component.yml`),
+  which removes IDF 5.x (feckless-libs' 9015; usb_host_msc and usb_host_uac
+  say `idf: ">=6.1"`). So here too: `idf:` is `>=6.1` in main and esp_ipa;
+  the top-level CMakeLists.txt stops the configure on anything older; the
+  IDF 5 branches go -- `main/CMakeLists.txt`'s `hal` fallback for
+  `esp_hal_usb`, esp_ipa's `v5.4-` and `v5.5` blobs and their CMake
+  branches, `v5.5.5` in m5tab5.yml's choices -- and
+  `sdkconfig.defaults.idf6` is folded into `sdkconfig.defaults`
+  (`CONFIG_MBEDTLS_X509_CREATE_C=y`, same value, so an existing sdkconfig is
+  already right). The menu's listing is `storage_list.h` (9011) in place of
+  Avoidant's own opendir/stat/qsort: one FatFs pass, so a size no longer
+  costs a `stat()` that re-reads the folder, dotfiles and "System Volume
+  Information" left out by the library, and `list_filter()` keeping folders
+  and the `.bin`/`.elf` files `install_probe()`/`elfrun_probe()` accept, as
+  before. The volumes row is `storage_list_volumes()`, labelled by the
+  library. Also from the range: feckless_chooser (9012), wifi_stop() without
+  a false SDMMC error (9013), the RX8130 alarm (9014), none used here yet.
+  The ABI stays `feckless_abi_v1`. **`idf_component.yml` changed,
+  `dependencies.lock` not updated:** read the lock diff after the
+  re-resolve (esp_hosted should still be 3.0.10), and `rm sdkconfig` only if
+  it predates 0046. Not built with ESP-IDF; the registry is unreachable
+  from a session. What to look for: the menu as before, folders first, with
+  sizes on the .bin and .elf rows and "microSD" / "USB" at the top level;
+  and no `sd_host_del_sdmmc_controller` error after a radio-down.
