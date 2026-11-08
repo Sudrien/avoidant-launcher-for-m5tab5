@@ -9,6 +9,13 @@ CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
 
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 
+# 0058: the C library is picolibc, IDF 6's default, written down. The .elf
+# apps call this firmware's libc through the feckless ABI, whose names are
+# picolibc's (`_ctype_b`, `fputc`, `stdout`, `__errno`), and feckless_abi
+# stops the configure on newlib. Defeatist Music Player's defaults selected
+# newlib for a while (its 8134); they do not now (its 8137).
+CONFIG_LIBC_PICOLIBC=y
+
 # Console, logs and the file protocol all on the USB-C port.
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 

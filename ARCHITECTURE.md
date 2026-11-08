@@ -768,3 +768,25 @@ the later one is what happened.
   from a session. What to look for: the menu as before, folders first, with
   sizes on the .bin and .elf rows and "microSD" / "USB" at the top level;
   and no `sd_host_del_sdmmc_controller` error after a radio-down.
+- **0058** m5tab5: picolibc, written down. IDF 6's default C library, and
+  what this firmware was already built with -- nothing here selects newlib
+  -- but only by default, so `sdkconfig.defaults` now says
+  `CONFIG_LIBC_PICOLIBC=y` and the next change of default cannot move it.
+  The reason it matters is the ABI: an `.elf` app calls this firmware's
+  libc, and feckless-libs' 9017 makes that picolibc's (`_ctype_b`, `fputc`,
+  `stdout`, `toupper` in; `_ctype_` out) and makes `errno` a call to
+  `__errno()` in the app (IDF's v6.1 tag, unlike `release/v6.1`, leaves
+  picolibc's `errno` thread-local, which cannot be in an ELF). That is why
+  Defeatist Music Player had selected newlib (its 8134, undone by its 8137).
+  Apps built before 9017 import `_ctype_`, which no longer exists, so
+  esp_elf refuses them by name; rebuild them against the new tag. The ABI
+  stays `feckless_abi_v1`. `esp_ipa` already takes its non-newlib library
+  here (`libesp_ipa_p4_less_v3.a`). Nothing else in the tree names newlib.
+  **Needs** a feckless-libs tag that has 9017: the pins in
+  `main/idf_component.yml` are v0.10.1, which does not export `_ctype_b`,
+  so on picolibc the table's `_ctype_` has nothing to link to (picolibc's
+  libc.a has `_ctype_b` and no `_ctype_`), which is the state 0057 left;
+  the pin move is the next patch, once the tag exists. `rm sdkconfig`
+  before the next build; `grep LIBC_PICOLIBC sdkconfig` shows `=y` when it
+  took (nothing is logged). Not built.
+

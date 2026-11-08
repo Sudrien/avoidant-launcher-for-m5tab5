@@ -74,6 +74,12 @@ feckless-libs-for-m5tab5 -- `feckless_abi`, `feckless_drivers`,
 one tag in `main/idf_component.yml` (0030).
 
 - **Every dependency is pinned to a tag.**
+- **The C library is picolibc**, IDF 6's default and what
+  `sdkconfig.defaults` says (0058). An `.elf` app's libc calls are this
+  firmware's, through the feckless ABI, so app and launcher are one
+  library; feckless_abi fails the configure on newlib. Newlib's `FILE`,
+  `_ctype_` and `struct _reent` are not here: do not write code that
+  reaches into them.
 - **The Espressif registry is not reachable from a session.** A session
   can still build by fetching the registry components' sources from
   GitHub (esp-bsp, esp-iot-solution, esp-usb) into a scratch component
