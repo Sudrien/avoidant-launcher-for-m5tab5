@@ -487,7 +487,11 @@ static void run_boxed(const char *name, uint8_t *image, size_t len)
 
     clock_net_stop();                           /* 0053: the app starts with the radio down */
     ESP_LOGI(TAG, "running %s in a box of %u KB", name, (unsigned)(box / 1024));
-    const feckless_umode_end_t end = feckless_umode_app_run(app);
+    /* u-avoidant-0002: on core 1. The board came up here, on core 0, and the
+     * panel's DMA restart is a core-0 interrupt every frame; a window holds
+     * interrupts off on its own core, so an app computing for milliseconds
+     * between host calls flashed the panel cyan on core 0. */
+    const feckless_umode_end_t end = feckless_umode_app_run_on(app, 1);
     const feckless_umode_window_t *w = feckless_umode_app_window(app);
     ESP_LOGW(TAG, "%s: ended (reason %d), %u calls, %u interrupts, %u core changes", name,
              (int)end.reason, (unsigned)w->syscalls, (unsigned)w->irqs, (unsigned)w->migrations);

@@ -850,3 +850,20 @@ the menu. If the box faults at its first PSRAM access with a load or store
 access fault, look first at `bootloader_init_mem()`'s APM setup (every master
 in TEE mode on targets with `SOC_APM_SUPPORT_TEE_PERI_ACCESS_CTRL`), which
 the protected-mode sample, on IDF 5.5.4, did not meet.
+
+### u-avoidant-0002 -- a boxed app on core 1
+
+`run_boxed()` used to run the app on the main task, on core 0. That is
+also where Avoidant brought the board up, so the panel's per-frame DMA
+restart is a core-0 interrupt. A window holds interrupts off on its own
+core (feckless-libs' u-feckless-0017). Lothesome, drawing in windows of
+several milliseconds, starved that interrupt and the panel flashed the
+cyan of a DSI underrun. It now runs through
+`feckless_umode_app_run_on(app, 1)` (u-feckless-0031): a host task
+pinned to core 1, while `run_boxed()` waits on core 0. The app's own
+board inits find the drivers up and return ESP_OK, so the panel's
+interrupts stay on core 0.
+
+This needs feckless-libs' umode branch at u-feckless-0031 or later.
+**The lock pins an older commit, so re-resolve it**
+(`idf.py update-dependencies`).
