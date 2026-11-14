@@ -867,3 +867,44 @@ interrupts stay on core 0.
 This needs feckless-libs' umode branch at u-feckless-0031 or later.
 **The lock pins an older commit, so re-resolve it**
 (`idf.py update-dependencies`).
+
+### u-avoidant-0003 -- a boxed app's fault in the log, and where it is in its ELF
+
+When a boxed app ended any way but returning, the cause and the pc went to
+the panel only (`box_end_text()`), and the log had `ended (reason 1)`.
+Twice that cost a round of asking for the panel's line and guessing what
+was at the address: Defeatist's PIE fault (u-feckless-0034) and its errno
+fault (u-feckless-0042), a `store access fault at 0x480570be
+(0x4ff6feb0)` that turned out to be the box's `tp`.
+
+Now, before the app is unloaded, the panel's text goes to the log as well,
+and then where it happened:
+
+    avoidant: defeatist_boxwin.app.elf: The app stopped: store access fault at 0x480570be (0x4ff6feb0). The box kept it from the rest.
+    avoidant: defeatist_boxwin.app.elf: pc 0x480570be is 0x1be in the ELF: riscv32-esp-elf-addr2line -fipe defeatist_boxwin.app.elf.debug 0x1be
+    avoidant: defeatist_boxwin.app.elf: the address 0x4ff6feb0 is not in the app's image (internal RAM: the launcher's, not the box's)
+
+(figures from the host check below, not a board.) The pc -- for a stack
+overflow the guard's -- is turned into the ELF's own address by
+feckless-libs' `feckless_umode_app_elf_vaddr()` (u-feckless-0043), which
+is the same from load to load, where the box address is not. For a load
+or store fault, or a misaligned one (mcause 4 to 7), `mtval` is an address
+too and is placed the same way, or said to be outside the image, and
+internal RAM is named as the launcher's.
+
+**The `.debug` file.** `addr2line` needs the ELF before it was stripped.
+elf_loader keeps that as `<name>.app.elf.debug` beside the app when the
+app is built with `-DELF_LOADER_KEEP_DEBUG_ELF=ON`; without it the build
+strips at the link and keeps no symbols anywhere.
+
+Needs feckless-libs with u-feckless-0043; `dependencies.lock` has to move
+to it.
+
+*Checked, on a host:* `box_end_text()` and the new `box_log_where()`
+compiled against feckless-libs' real `feckless_umode_load.h` and
+`feckless_umode_run.h`, -Wall -Wextra -Werror, and run with a stand-in for
+the image: a store access fault into internal RAM, one into the image, an
+illegal instruction (no address line, mtval being an instruction), and a
+stack overflow (the guard's pc).
+
+*Not checked:* an ESP-IDF build; a board.

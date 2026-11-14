@@ -448,6 +448,36 @@ static void box_end_text(const feckless_umode_end_t *end, char *out, size_t len)
     }
 }
 
+/* u-avoidant-0003. A fault's pc, and for an access fault the address it
+ * touched, as addresses in the app's ELF where they are in its image, with
+ * the command that names the function and line. The box address changes
+ * from load to load; the ELF address does not. addr2line needs the ELF
+ * before it was stripped: elf_loader keeps it as <name>.debug when the app
+ * is built with -DELF_LOADER_KEEP_DEBUG_ELF=ON. */
+static void box_log_where(const feckless_umode_app_t *app, const char *name,
+                          const feckless_umode_end_t *end)
+{
+    const uint32_t pc = end->reason == FECKLESS_UMODE_END_STACK ? end->sp_pc : end->pc;
+    uint32_t at;
+    if (feckless_umode_app_elf_vaddr(app, pc, &at)) {
+        ESP_LOGE(TAG, "%s: pc 0x%08x is 0x%x in the ELF: riscv32-esp-elf-addr2line -fipe %s.debug 0x%x",
+                 name, (unsigned)pc, (unsigned)at, name, (unsigned)at);
+    } else {
+        ESP_LOGE(TAG, "%s: pc 0x%08x is not in the app's code", name, (unsigned)pc);
+    }
+    /* mcause 5 and 7, load and store access faults, and 4 and 6, the
+     * misaligned ones: mtval is the address. Anything else, it is not. */
+    const uint32_t code = end->mcause & 0xfffu;
+    if (end->reason == FECKLESS_UMODE_END_FAULT && code >= 4 && code <= 7) {
+        if (feckless_umode_app_elf_vaddr(app, end->mtval, &at)) {
+            ESP_LOGE(TAG, "%s: the address 0x%08x is 0x%x in the ELF", name, (unsigned)end->mtval, (unsigned)at);
+        } else {
+            ESP_LOGE(TAG, "%s: the address 0x%08x is not in the app's image%s", name, (unsigned)end->mtval,
+                     (end->mtval >> 24) == 0x4f ? " (internal RAM: the launcher's, not the box's)" : "");
+        }
+    }
+}
+
 /* Takes image; frees it either way. */
 static void run_boxed(const char *name, uint8_t *image, size_t len)
 {
@@ -495,12 +525,19 @@ static void run_boxed(const char *name, uint8_t *image, size_t len)
     const feckless_umode_window_t *w = feckless_umode_app_window(app);
     ESP_LOGW(TAG, "%s: ended (reason %d), %u calls, %u interrupts, %u core changes", name,
              (int)end.reason, (unsigned)w->syscalls, (unsigned)w->irqs, (unsigned)w->migrations);
+    /* u-avoidant-0003: what the panel says, in the log too, and where the
+     * fault is in the app's ELF -- before unload, while the image is there
+     * to say. The panel was the only place the cause and pc went. */
+    box_end_text(&end, err, sizeof err);
+    if (end.reason != FECKLESS_UMODE_END_EXIT) {
+        ESP_LOGE(TAG, "%s: %s", name, err);
+        box_log_where(app, name, &end);
+    }
     feckless_umode_unload(app);
     feckless_box_calls_end();                   /* its files, its storage lease and hold */
 
     lcd_backlight_set(BRIGHTNESS);              /* the app may have set its own */
     clock_net_start();
-    box_end_text(&end, err, sizeof err);
     message(name, err, end.reason == FECKLESS_UMODE_END_EXIT ? C_TEXT : C_BAD);
 }
 
