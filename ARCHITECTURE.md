@@ -908,3 +908,69 @@ illegal instruction (no address line, mtval being an instruction), and a
 stack overflow (the guard's pc).
 
 *Not checked:* an ESP-IDF build; a board.
+
+### u-avoidant-0004 -- a boxed app's NVS namespace, and the first build of the umode branch
+
+feckless-libs' box answers NVS only in namespaces the launcher names
+(u-feckless-0053), and esp_audio_codec's simple decoder where the
+launcher links the codec (u-feckless-0052). This firmware links it
+already (0049's `feckless_abi_audio`), so the codec needs nothing here.
+The namespace does:
+
+- **`main/boxns.c`** (no ESP-IDF): an app's namespace from its file name,
+  the name up to its first `_` or `.`, letters (lower-cased) and digits
+  only, at most 15 characters. `defeatist_boxed.app.elf` gets
+  `defeatist`, where Defeatist's own firmware keeps its settings, so the
+  boxed player finds them. A name this firmware or its libraries keep is
+  refused -- `duplicitous`, `avoidant`, `wifistore`, `wifi`, `phy`,
+  `misc`, `storage`, and anything beginning `feckless` (the HTTPS key,
+  mail), `nvs`, `esp`, `phy` or `wifi` -- so a file renamed
+  `wifistore.app.elf` cannot read the saved networks. Too long, empty,
+  another character, or kept: no namespace, and the box answers no NVS.
+- **`run_boxed()`** names it with `feckless_box_calls_nvs()` before the
+  load, or names none, and logs which:
+
+      avoidant: defeatist_boxed.app.elf: NVS in "defeatist"
+
+  `feckless_box_calls_end()` forgets it with the app.
+
+Two apps whose names share a stem share a namespace -- `defeatist_boxed`
+and `defeatist_boxwin` both get `defeatist` -- which is the point for one
+app's builds, and the price for two unrelated apps that happen to begin
+alike. It is the file name, which whoever puts the file on the card
+chose; the deny list is what keeps that from reaching this firmware's
+own.
+
+**The lock.** `main/idf_component.yml` names feckless-libs' `umode`
+branch, unchanged; `dependencies.lock` pins an older commit of it and has
+to move to one with u-feckless-0045 to 0053 (`idf.py
+update-dependencies`), read before it is committed. Not done here: the
+registry is not reachable from the session.
+
+*Checked:* `make -C m5tab5/test/boxns` under ASan and UBSan, 28 names:
+Defeatist's two builds, Spurious, upper case, the 15-character edge and
+one past it, empty and NULL, other characters (`-`, UTF-8), every kept
+name and prefix, and a name that only begins like a kept one. Three
+deliberate breaks -- the kept list skipped, no lower-casing, the length
+check one late -- each fail it (the last as an ASan overrun).
+
+And **the first ESP-IDF build of the umode branch**, u-avoidant-0001 to
+0004: ESP-IDF 6.1.1, riscv32-esp-elf 15.2.0, against feckless-libs' umode
+branch with u-feckless-0053 applied; `idf.py build`, `avoidant.bin` 2.68
+MB, 11% of the slot free. `box_codec_calls` has its seven entries (the
+codec found) and `box_nvs_calls` its fourteen. The component manager
+was off: the registry's components came from GitHub at the lock's
+versions (esp_audio_codec 2.5.0, esp_video 2.5.0 with esp_cam_sensor
+2.6.0 and esp_sccb_intf 1.0.0, and the rest as Defeatist's boxed build
+had them), each given its manifest's dependencies with
+`idf_component_optional_requires()`.
+
+*Not checked:* a board. Nothing of the umode branch has run on one with
+u-feckless-0045 or later.
+
+*What to look for on a Tab5*, with Defeatist's boxed ELF
+(`defeatist_boxed.app.elf`, u-defeatist-0022 to 0024):
+`defeatist_boxed.app.elf: NVS in "defeatist"`, then `running ... in a box
+of N KB` (N should be 16384); Defeatist's `from flash: volume=...` line
+if the firmware had stored prefs; and a FLAC playing. A change of volume,
+the player left and run again, should come back as set.

@@ -42,6 +42,7 @@
 #include "console.h"
 #include "elfrun.h"
 #include "elfsym.h"           /* u-avoidant-0001 */
+#include "boxns.h"            /* u-avoidant-0004 */
 #include "feckless_abi.h"
 #include "feckless_box_calls.h"    /* u-avoidant-0001 */
 #include "feckless_umode_idf.h"
@@ -501,6 +502,19 @@ static void run_boxed(const char *name, uint8_t *image, size_t len)
         snprintf(err, sizeof err, "No room for a box: %u KB of PSRAM in one block.", (unsigned)(big / 1024));
         message("Not run", err, C_BAD);
         return;
+    }
+
+    /* u-avoidant-0004: the app's NVS namespace, from its file name
+     * (boxns.c); none if the name gives none, and the box then answers no
+     * NVS at all. feckless_box_calls_end() forgets it. */
+    char ns[BOXNS_LEN + 1];
+    if (boxns_for(name, ns)) {
+        const char *const one[] = { ns };
+        (void)feckless_box_calls_nvs(one, 1);
+        ESP_LOGI(TAG, "%s: NVS in \"%s\"", name, ns);
+    } else {
+        (void)feckless_box_calls_nvs(NULL, 0);
+        ESP_LOGI(TAG, "%s: no NVS (its name gives no namespace this firmware does not keep)", name);
     }
 
     uint32_t n;
