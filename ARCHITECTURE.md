@@ -998,3 +998,34 @@ to look for: `avoidant: running errant_boxed.app.elf in a box of N KB`
 with N above 16384, and no `Out of memory` from the map; if N is still
 under about 19000 the board has not the PSRAM free, and the map will say
 `world: no PSRAM for it` and go on without the world.
+
+### u-avoidant-0006 -- 0005 and the map's box calls, built
+
+No code. u-avoidant-0005 said "not built": the session then had no
+esp_audio_codec to configure this firmware with. With it fetched, the
+`umode` branch at c7e71e2 (0005 merged) builds and links against
+feckless-libs' `umode` branch at 7b9c5fe, which is u-feckless-0062 -- the
+UART, I2C device and GPIO calls Errant Moving Map's boxed ELF needs
+(its u-errant-0003):
+
+    avoidant.bin binary size 0x2b1bd0 bytes. Smallest app partition is 0x300000 bytes. 0x4e430 bytes (10%) free.
+
+ESP-IDF 6.1.1, riscv32-esp-elf 15.2.0, no warnings. `avoidant.elf` holds
+box_drivers.c's twenty handlers and `box_drivers_end`, so a launcher
+built from here answers them; feckless_box_calls' new requirements
+(esp_driver_uart, esp_driver_gpio, esp_driver_i2c) resolve with nothing
+added to this project.
+
+How it was built: the registry is not reachable from a session, so the
+component manager was off and the registry's components came from GitHub
+-- at the lock's versions for esp_audio_codec (2.5.0), esp_hosted
+(3.0.10), esp_video (2.5.0), esp_cam_sensor (2.6.0) and esp_sccb_intf;
+esp_h264 at 1.5.0 where the lock has 1.4.1; the others at their
+repositories' heads -- each linked to what its manifest names. The
+feckless components were the ones `main/idf_component.yml` names, at the
+branch's head, not at the commit `dependencies.lock` records (dbbb183,
+before the camera and 0062): the lock wants the workflow's refresh
+before a release build has these calls.
+
+*Not checked:* a board; a build with the component manager and the
+lock's exact versions.
