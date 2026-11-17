@@ -806,7 +806,8 @@ Trusted (ABI v1) apps run as before.
   `feckless_abi_box_v1`? That is the mark `feckless_abi_require_box()` puts
   in a boxed app. Every offset is checked against the image's length.
 - `run_elf()`: an ELF with the mark goes to `run_boxed()`. The box is the
-  largest free PSRAM block less 2 MB for this firmware, at most 16 MB, at
+  largest free PSRAM block less 2 MB for this firmware, at most 16 MB
+  (24 MB since u-avoidant-0005), at
   least 1 MB, with a 64 KB stack; `feckless_umode_load()` relocates the app
   into it with `feckless_box_calls_v1()`'s table, the image is freed, and
   `feckless_umode_app_run()` runs its constructors and app_main on this task.
@@ -974,3 +975,26 @@ u-feckless-0045 or later.
 of N KB` (N should be 16384); Defeatist's `from flash: volume=...` line
 if the firmware had stored prefs; and a FLAC playing. A change of volume,
 the player left and run again, should come back as set.
+
+### u-avoidant-0005 -- a box of up to 24 MB
+
+`BOX_MAX` in `run_boxed()` goes from 16 MB to 24 MB, for Errant Moving
+Map (its `umode` branch, u-errant-0001 to 0003: the map as a boxed ELF).
+The map's four 1280 px tiles are 13.1 MB, the world it draws at boot
+3.3 MB more, and its render scratch, coarse tiles and Wi-Fi table about
+2 MB: some 19 MB, where a 16 MB box held the tiles and then ran short.
+
+The rule is otherwise as it was: the largest free PSRAM block less 2 MB
+for this firmware, at least 1 MB. So what a box gets is still what the
+board has free; only the ceiling moved, and on a board whose largest
+block is under 18 MB nothing changes. With a larger block the firmware
+used to keep the rest (10 MB of a 26 MB block); now it keeps the 2 MB
+margin, as it already did on a fuller board. Nothing in feckless_umode
+limits a box's size.
+
+*Not built:* a one-line constant; the session's ESP-IDF build has no
+esp_audio_codec to configure this firmware with. *Not on a board.* What
+to look for: `avoidant: running errant_boxed.app.elf in a box of N KB`
+with N above 16384, and no `Out of memory` from the map; if N is still
+under about 19000 the board has not the PSRAM free, and the map will say
+`world: no PSRAM for it` and go on without the world.

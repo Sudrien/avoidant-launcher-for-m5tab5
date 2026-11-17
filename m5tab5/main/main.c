@@ -424,7 +424,11 @@ static void install_and_boot(const entry_t *e)
 #define BOX_STACK       (64 * 1024)
 #define BOX_MARGIN      (2 * 1024 * 1024)      /* PSRAM left to this firmware */
 #define BOX_MIN         (1 * 1024 * 1024)
-#define BOX_MAX         (16 * 1024 * 1024)
+/* u-avoidant-0005: 24 MB, was 16. Errant Moving Map's four tiles are
+ * 13.1 MB and its world at boot 3.3 MB more, about 19 MB with its scratch
+ * (its u-errant-0001): 16 held the tiles and little else. The margin above
+ * still decides on a board with less free. */
+#define BOX_MAX         (24 * 1024 * 1024)
 
 /* How the app ended, for the message. */
 static void box_end_text(const feckless_umode_end_t *end, char *out, size_t len)
