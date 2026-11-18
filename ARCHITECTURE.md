@@ -1157,3 +1157,15 @@ with stand-ins for ESP-IDF's. *Not checked:* an ESP-IDF build; a board.
 What to look for: Defeatist's `.app.elf` -> Uses: reads, writes, sound,
 `Saves settings: "defeatist"`, `/sd/.tap` and `/sd/tap-%lu.wav` among
 the paths, and its file types.
+
+### u-avoidant-0010 -- elfperm.c in the build
+
+0009 added `main/elfperm.c` but not to `main/CMakeLists.txt`'s SRCS, so
+the ESP-IDF link failed: `undefined reference to elfperm_label` (from
+`show_uses()`) and `elfperm_scan` (from `elfrun_perms()`). The host
+checks for 0009 compiled the files one by one and linked the test
+binaries from their own Makefiles, so none of them read SRCS. It is
+listed now.
+
+*Checked:* every `.c` in `m5tab5/main` is now in SRCS (a script compares
+the two). *Not checked:* the ESP-IDF build itself, which is the user's.

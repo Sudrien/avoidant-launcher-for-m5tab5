@@ -13,6 +13,7 @@ idf_component_register(
          "clock.c"      # 0052
          "elfsym.c"     # u-avoidant-0001
          "boxns.c"      # u-avoidant-0004
+         "elfperm.c"    # u-avoidant-0009, listed by u-avoidant-0010
     INCLUDE_DIRS "."
     REQUIRES app_update esp_app_format spi_flash esp_partition bootloader_support nvs_flash
              fatfs sdmmc esp_driver_sdmmc esp_driver_usb_serial_jtag vfs
