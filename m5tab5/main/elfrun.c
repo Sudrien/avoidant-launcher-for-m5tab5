@@ -108,3 +108,28 @@ out:
     work_unlock();
     return ret;
 }
+
+esp_err_t elfrun_perms(const char *path, elfperm_t *out, char *err, size_t err_len)
+{
+    esp_err_t ret = ESP_OK;
+    FILE *f = NULL;
+    storage_id_t vid;
+    work_lock();
+    if (!vol_hold(path, &vid)) {
+        snprintf(err, err_len, "the card or drive went away");
+        work_unlock();
+        return ESP_FAIL;
+    }
+    struct stat st;
+    char why[96];
+    if (stat(path, &st) != 0) FAIL("cannot read it");
+    f = fopen(path, "rb");
+    if (!f) FAIL("cannot open it");
+    if (!check(f, (size_t)st.st_size, why, sizeof why)) FAIL("%s", why);
+    if (!elfperm_scan(file_read, f, (size_t)st.st_size, out)) FAIL("its tables are damaged");
+out:
+    if (f) fclose(f);
+    vol_release(vid);
+    work_unlock();
+    return ret;
+}

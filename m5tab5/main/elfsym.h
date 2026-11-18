@@ -26,4 +26,11 @@ bool elfsym_imports(const uint8_t *img, size_t len, const char *name);
 typedef bool (*elfsym_read_fn)(void *ctx, size_t off, void *dst, size_t n);
 bool elfsym_imports_from(elfsym_read_fn rd, void *ctx, size_t len, const char *name);
 
+/* u-avoidant-0009: each undefined .dynsym name, in order, to fn. A name
+ * over ELFSYM_NAME_MAX characters, or with no NUL inside the string table,
+ * is passed over. False for a damaged ELF (fn may have seen some names). */
+#define ELFSYM_NAME_MAX 64
+typedef void (*elfsym_name_fn)(const char *name, void *arg);
+bool elfsym_each_import(elfsym_read_fn rd, void *ctx, size_t len, elfsym_name_fn fn, void *arg);
+
 #define ELFSYM_BOX_MARK "feckless_abi_box_v1"

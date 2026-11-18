@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include "esp_err.h"
+#include "elfperm.h"
 #include "install.h"
 
 /* Whether path is an ELF elfrun_load() would take: 32-bit RISC-V, a
@@ -30,3 +31,9 @@ bool elfrun_probe(const char *path, char *why, size_t why_len, bool *boxed);
  * while the app runs. Takes work_lock() and holds the volume itself. */
 esp_err_t elfrun_load(const char *path, uint8_t **image, size_t *len,
                       install_progress_fn cb, void *ctx, char *err, size_t err_len);
+
+/* u-avoidant-0009: what the ELF at path would use (elfperm.h), read from the
+ * file -- its imports, and the strings of its data sections, so up to its
+ * whole size in the worst case and a few hundred KB for most. Takes
+ * work_lock() and holds the volume itself, as elfrun_load() does. */
+esp_err_t elfrun_perms(const char *path, elfperm_t *out, char *err, size_t err_len);

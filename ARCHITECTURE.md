@@ -1096,3 +1096,64 @@ read by `elfrun_probe()` (compiled on the host against stand-in headers,
 *Not checked:* an ESP-IDF build (main.c's part is compiled by nothing
 here); a board. What to look for: Defeatist's `.app.elf` listed `box`,
 an older trusted build `trusted`, and no `listed as ... loaded as` line.
+
+### u-avoidant-0009 -- Uses: what an .elf would use, from the ELF
+
+**Run?** gets a third button, **Uses**, between Cancel and Run. It opens a
+paged list of what the app would use, also written to the log as
+`<name> uses:` and a line per item.
+
+There is no manifest to read: feckless_abi's ELFs declare nothing. Two
+things can be known before an app runs, and that is what is shown.
+
+- **Its imports, sorted into groups** (`main/elfperm.c`): files read,
+  written, deleted or renamed; settings read or saved; sound; microphone;
+  USB host; camera; UART/I2C/GPIO; the clock; restart; battery; and, for a
+  trusted app, the network. The rules follow feckless_box_calls' tables
+  (box_storage.c, box_nvs.c, box_audio.c, box_camera.c, box_drivers.c,
+  box_calls.c) as of u-feckless-0066. A boxed app can reach the board
+  only through those calls, and the load refuses an import the box does
+  not answer, so for a box this part is exact. A call added there later
+  counts as "ungrouped" until the list here learns it. Imports come from
+  a new `elfsym_each_import()`, the same walk as `elfsym_imports_from()`.
+- **The paths and file types in its data**: NUL-terminated strings, each
+  starting a section or following a NUL, in allocated, non-executable
+  PROGBITS sections. A path starts `/sd`, `/usb`, `0:/` or `1:/`; printf
+  patterns are kept as they are (`/sd/tap-%lu.wav`). A file type is a dot
+  and 2 to 5 letters or digits. At most 16 paths and 32 types; any more
+  are counted.
+
+For a boxed app the page also shows the settings namespace boxns gives
+it (`Saves settings: "defeatist"`, or `none allowed`), `No network: the
+box has none`, and, if it writes or deletes, `Its writes have no folder
+limit`. That last line is true: Avoidant sets no
+`feckless_box_calls_write_filter()`, so a boxed app may write or delete
+anywhere on the card or the drive. A trusted app is headed `Trusted: it
+can reach anything.`, because nothing checks its calls.
+
+What this cannot see: paths an app builds from what it is given (a
+folder the listener picked), and which way an `fopen` opens (read or
+write is decided at run time; `fwrite` and the rest are what mark a
+writer).
+
+Reading costs a pass over the data sections when Uses is tapped, under
+`work_lock()` and a volume hold, as a load does; the list's probe is
+unchanged.
+
+*Checked:* `make -C m5tab5/test/elfperm` (new) under ASan and UBSan. It
+covers the rules (whole names against prefixes, the microphone ahead of
+`audio_out_`, every label), an ELF built in memory with imports, a
+.rodata of paths, types and look-alikes, a path in .text and in an
+unallocated .comment (neither reported), the room limits, a long path
+cut, an over-long run, and damage, never reading past the end. Two
+deliberate breaks (.text scanned; the microphone rule after
+`audio_out_`) each fail it. `elfsym` still passes. On real linker output
+(an i386 `-shared -nostdlib` object with fopen, fwrite, rename,
+nvsh_set_u8, audio_out_write and uart_write_bytes, and four paths and
+three types), `elfrun_perms()` gives those six groups, four paths and
+`.flac .mp3 .ogg`. main.c, elfrun.c, elfperm.c and elfsym.c compile at
+`-O2 -Wall -Wextra -Werror` on the host against feckless-libs' headers,
+with stand-ins for ESP-IDF's. *Not checked:* an ESP-IDF build; a board.
+What to look for: Defeatist's `.app.elf` -> Uses: reads, writes, sound,
+`Saves settings: "defeatist"`, `/sd/.tap` and `/sd/tap-%lu.wav` among
+the paths, and its file types.

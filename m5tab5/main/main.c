@@ -14,6 +14,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <strings.h>
 
@@ -562,6 +563,128 @@ static void run_boxed(const char *name, uint8_t *image, size_t len)
     message(name, err, end.reason == FECKLESS_UMODE_END_EXIT ? C_TEXT : C_BAD);
 }
 
+/* ---- what an .elf would use (u-avoidant-0009) ---------------------------- */
+
+/*
+ * From Run?: the groups of its imports, where a boxed app keeps its
+ * settings, and the paths and file types it names (elfperm.h says what
+ * that can and cannot see). Paged; the whole report also goes to the log.
+ */
+#define USES_LINES  64
+#define USES_W      72
+#define USES_PITCH  (TEXT_H + 14)
+#define USES_TOP    (HEAD_H + 30)
+#define USES_ROWS   ((H - FOOT_H - 10 - USES_TOP) / USES_PITCH)
+
+static elfperm_t s_perm;                         /* 1.3 KB: not on the stack */
+static char s_uses[USES_LINES][USES_W];
+static uint16_t s_uses_c[USES_LINES];
+static bool s_uses_tail[USES_LINES];             /* a path: cut at its start */
+static int s_uses_n;
+
+static void uses_add(uint16_t c, bool tail, const char *fmt, ...)
+{
+    if (s_uses_n >= USES_LINES) return;
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(s_uses[s_uses_n], USES_W, fmt, ap);
+    va_end(ap);
+    s_uses_c[s_uses_n] = c;
+    s_uses_tail[s_uses_n] = tail;
+    s_uses_n++;
+}
+
+static void show_uses(const entry_t *e, const char *path)
+{
+    gfx_fill_rect(0, 0, W, H, C_BG);
+    header("Reading", path);
+    show();
+    char err[128];
+    if (elfrun_perms(path, &s_perm, err, sizeof err) != ESP_OK) {
+        message("Not read", err, C_BAD);
+        return;
+    }
+    const elfperm_t *p = &s_perm;
+    const bool boxed = e->kind == KIND_BOX;
+
+    s_uses_n = 0;
+    if (boxed) uses_add(C_ELF, false, "In a box. It uses:");
+    else {
+        uses_add(C_TRUST, false, "Trusted: it can reach anything.");
+        uses_add(C_TRUST, false, "What it names:");
+    }
+    for (int b = 0; b < ELFPERM_GROUPS; b++) {
+        const uint32_t bit = 1u << b;
+        if (!(p->groups & bit)) continue;
+        if (boxed && (bit == ELFPERM_NVS_R || bit == ELFPERM_NVS_W)) {
+            char ns[BOXNS_LEN + 1];
+            if (boxns_for(e->name, ns)) uses_add(C_TEXT, false, "%s: \"%s\"", elfperm_label(bit), ns);
+            else uses_add(C_DIM, false, "%s: none allowed", elfperm_label(bit));
+            continue;
+        }
+        uses_add(C_TEXT, false, "%s", elfperm_label(bit));
+    }
+    if (!p->groups) uses_add(C_TEXT, false, "The screen and touch, no more");
+    /* No write filter is set (feckless_box_calls_write_filter()): a box
+     * app's writes may go anywhere on the card or the drive. */
+    if (boxed && (p->groups & (ELFPERM_WRITE | ELFPERM_DELETE)))
+        uses_add(C_TRUST, false, "Its writes have no folder limit");
+    if (boxed) uses_add(C_DIM, false, "No network: the box has none");
+    uses_add(C_DIM, false, "%u imports (%u ungrouped)",
+             (unsigned)p->imports, (unsigned)p->other);
+
+    if (p->npaths) {
+        uses_add(C_DIM, false, "Paths it names:");
+        for (uint32_t i = 0; i < p->npaths; i++) uses_add(C_TEXT, true, "%s", p->paths[i]);
+        if (p->paths_more) uses_add(C_DIM, false, "and %u more", (unsigned)p->paths_more);
+    } else {
+        uses_add(C_DIM, false, "Names no path on a volume");
+    }
+    if (p->nexts) {
+        uses_add(C_DIM, false, "File types it names:");
+        char line[USES_W] = "";
+        for (uint32_t i = 0; i < p->nexts; i++) {
+            /* 31 characters a line at this scale */
+            if (strlen(line) + 1 + strlen(p->exts[i]) > 31) {
+                uses_add(C_TEXT, false, "%s", line);
+                line[0] = 0;
+            }
+            if (line[0]) strcat(line, " ");
+            strcat(line, p->exts[i]);
+        }
+        if (line[0]) uses_add(C_TEXT, false, "%s", line);
+        if (p->exts_more) uses_add(C_DIM, false, "and %u more", (unsigned)p->exts_more);
+    }
+
+    ESP_LOGI(TAG, "%s uses:", e->name);
+    for (int i = 0; i < s_uses_n; i++) ESP_LOGI(TAG, "  %s", s_uses[i]);
+
+    const int pages = (s_uses_n + USES_ROWS - 1) / USES_ROWS;
+    const int bw = (W - 3 * PAD) / 2, by = H - FOOT_H + 20, bh = FOOT_H - 40;
+    for (int page = 0;;) {
+        gfx_fill_rect(0, 0, W, H, C_BG);
+        char sub[320];
+        if (pages > 1) snprintf(sub, sizeof sub, "%s  (%d/%d)", e->name, page + 1, pages);
+        else snprintf(sub, sizeof sub, "%s", e->name);
+        header("Uses", sub);
+        for (int r = 0; r < USES_ROWS && page * USES_ROWS + r < s_uses_n; r++) {
+            const int i = page * USES_ROWS + r, y = USES_TOP + r * USES_PITCH;
+            if (s_uses_tail[i]) gfx_draw_text_tail(PAD, y, s_uses[i], SCALE, W - 2 * PAD, s_uses_c[i]);
+            else text(PAD, y, s_uses[i], W - 2 * PAD, s_uses_c[i]);
+        }
+        button(PAD, by, bw, bh, "Back", C_BTN);
+        if (pages > 1) button(2 * PAD + bw, by, bw, bh, "More", C_BTN);
+        show();
+        int x, y;
+        for (;;) {
+            wait_tap(&x, &y, -1);
+            if (hit(x, y, PAD, by, bw, bh)) return;
+            if (pages > 1 && hit(x, y, 2 * PAD + bw, by, bw, bh)) break;
+        }
+        page = (page + 1) % pages;
+    }
+}
+
 /* ---- run an .elf (0023) -------------------------------------------------- */
 
 /*
@@ -582,6 +705,7 @@ static void run_elf(const entry_t *e)
     snprintf(path, sizeof path, "%s/%s", s_dir, e->name);
     fmt_size(size, sizeof size, (long)e->size);
 
+redraw:
     gfx_fill_rect(0, 0, W, H, C_BG);
     header("Run?", path);
     text_centred(H / 2 - 100, e->name, C_ELF);
@@ -595,15 +719,21 @@ static void run_elf(const entry_t *e)
         text_centred(H / 2 + 170, "In a box, kept from the rest.", C_ELF);
     else
         text_centred(H / 2 + 170, "Trusted: the whole board.", C_TRUST);
-    const int bw = (W - 3 * PAD) / 2, by = H - FOOT_H + 20, bh = FOOT_H - 40;
+    /* u-avoidant-0009: Cancel, Uses, Run */
+    const int bw = (W - 4 * PAD) / 3, by = H - FOOT_H + 20, bh = FOOT_H - 40;
     button(PAD, by, bw, bh, "Cancel", C_BTN);
-    button(2 * PAD + bw, by, bw, bh, "Run", C_GO);
+    button(2 * PAD + bw, by, bw, bh, "Uses", C_BTN);
+    button(3 * PAD + 2 * bw, by, bw, bh, "Run", C_GO);
     show();
     int x, y;
     for (;;) {
         wait_tap(&x, &y, -1);
         if (hit(x, y, PAD, by, bw, bh)) return;
-        if (hit(x, y, 2 * PAD + bw, by, bw, bh)) break;
+        if (hit(x, y, 2 * PAD + bw, by, bw, bh)) {
+            show_uses(e, path);
+            goto redraw;
+        }
+        if (hit(x, y, 3 * PAD + 2 * bw, by, bw, bh)) break;
     }
 
     gfx_fill_rect(0, 0, W, H, C_BG);
