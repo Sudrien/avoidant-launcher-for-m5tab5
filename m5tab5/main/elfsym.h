@@ -19,4 +19,11 @@
  * offset in the image is checked against len; a damaged ELF answers false. */
 bool elfsym_imports(const uint8_t *img, size_t len, const char *name);
 
+/* u-avoidant-0008: the same, read through rd -- n bytes at off into dst,
+ * true if all of them were read -- from something len bytes long. What
+ * elfrun_probe() uses on a file, so the list can say boxed or trusted
+ * without loading the app. name is at most 64 characters. */
+typedef bool (*elfsym_read_fn)(void *ctx, size_t off, void *dst, size_t n);
+bool elfsym_imports_from(elfsym_read_fn rd, void *ctx, size_t len, const char *name);
+
 #define ELFSYM_BOX_MARK "feckless_abi_box_v1"

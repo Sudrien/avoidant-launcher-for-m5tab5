@@ -89,6 +89,7 @@ static const char *TAG = "avoidant";
 #define C_DIR       RGB(120, 190, 255)
 #define C_BIN       RGB(255, 210, 120)
 #define C_ELF       RGB(170, 225, 140)     /* 0023: runs, does not install */
+#define C_TRUST     C_BIN                  /* u-avoidant-0008: a trusted .elf's line, amber */
 #define C_RULE      RGB(44, 48, 60)
 #define C_BTN       RGB(52, 58, 76)
 #define C_GO        RGB(40, 130, 70)
@@ -278,7 +279,8 @@ static int s_hidden;     /* .bin files here that are not apps */
 static char s_dir[512] = "";
 
 #define KIND_BIN 1
-#define KIND_ELF 2
+#define KIND_ELF 2         /* an .elf for the trusted path */
+#define KIND_BOX 3         /* u-avoidant-0008: an .elf built for a box */
 
 static bool is_bin(const char *n)
 {
@@ -307,11 +309,12 @@ static int list_filter(const char *dir, const storage_ent_t *e, void *ctx)
     if (elf) {
         /* 0023: an .elf that is not a Tab5 app is only logged; s_hidden
          * counts .bins */
-        if (!elfrun_probe(full, why, sizeof why)) {
+        bool boxed;
+        if (!elfrun_probe(full, why, sizeof why, &boxed)) {
             PHASE("not listed: %s (%s)", e->name, why);
             return STORAGE_LIST_SKIP;
         }
-        return KIND_ELF;
+        return boxed ? KIND_BOX : KIND_ELF;
     }
     if (!install_probe(full, why, sizeof why)) {
         PHASE("not listed: %s (%s)", e->name, why);
@@ -587,6 +590,11 @@ static void run_elf(const entry_t *e)
     char abi[32];
     snprintf(abi, sizeof abi, "feckless ABI v%d", FECKLESS_ABI_VERSION);
     text_centred(H / 2 + 100, abi, C_DIM);
+    /* u-avoidant-0008: which way, from the list's look at its imports */
+    if (e->kind == KIND_BOX)
+        text_centred(H / 2 + 170, "In a box, kept from the rest.", C_ELF);
+    else
+        text_centred(H / 2 + 170, "Trusted: the whole board.", C_TRUST);
     const int bw = (W - 3 * PAD) / 2, by = H - FOOT_H + 20, bh = FOOT_H - 40;
     button(PAD, by, bw, bh, "Cancel", C_BTN);
     button(2 * PAD + bw, by, bw, bh, "Run", C_GO);
@@ -609,7 +617,14 @@ static void run_elf(const entry_t *e)
         return;
     }
 
-    if (elfsym_imports(image, len, ELFSYM_BOX_MARK)) {     /* u-avoidant-0001 */
+    /* u-avoidant-0001: the loaded image decides. 0008: if the file changed
+     * since the list read it, say so -- the screen said the other thing. */
+    const bool boxed = elfsym_imports(image, len, ELFSYM_BOX_MARK);
+    if (boxed != (e->kind == KIND_BOX)) {
+        ESP_LOGW(TAG, "%s: listed as %s, loaded as %s; running it as loaded", e->name,
+                 e->kind == KIND_BOX ? "boxed" : "trusted", boxed ? "boxed" : "trusted");
+    }
+    if (boxed) {
         run_boxed(e->name, image, len);
         return;
     }
@@ -737,8 +752,12 @@ static void menu(void)
                     }
                     text(PAD, y + (ROW_H - TEXT_H) / 2, s, W - 2 * PAD, C_DIR);
                 } else {
-                    char sz[24];
-                    fmt_size(sz, sizeof sz, (long)e->size);
+                    char sz[40], n[24];
+                    fmt_size(n, sizeof n, (long)e->size);
+                    /* u-avoidant-0008: an .elf says how it would run */
+                    if (e->kind == KIND_BOX) snprintf(sz, sizeof sz, "box %s", n);
+                    else if (e->kind == KIND_ELF) snprintf(sz, sizeof sz, "trusted %s", n);
+                    else snprintf(sz, sizeof sz, "%s", n);
                     int sw = gfx_text_w(sz, SCALE);
                     text(PAD, y + (ROW_H - TEXT_H) / 2, e->name, W - 3 * PAD - sw,
                          is_elf(e->name) ? C_ELF : C_BIN);

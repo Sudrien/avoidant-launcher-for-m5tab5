@@ -1058,3 +1058,41 @@ bootloader's ExternalProject call, and `CMAKE_POLICY_DEFAULT_CMP0168` set
 before project.cmake makes it NEW there. Then the change itself: every
 project configures with CMake 3.28 and 4.4 without warnings, and the
 firmware builds as before. *Not checked:* CMake 4.5; a board.
+
+### u-avoidant-0008 -- the list says box or trusted
+
+An .elf's kind was known only after Run: `run_elf()` loaded the whole
+image and then asked `elfsym_imports()` whether it imports
+`feckless_abi_box_v1` (0001). Now the list knows first.
+
+- **`elfsym.c`**: the walk reads through a callback,
+  `elfsym_imports_from()`: the header, a section header at a time, the
+  symbols 32 at a time, and an undefined symbol's name only as far as
+  the name asked for -- a few KB of an app of several MB, on 600 bytes of
+  stack. `elfsym_imports()` is that walk over memory, so the image and
+  the file cannot disagree.
+- **`elfrun_probe()`** takes `bool *boxed` and answers it from the open
+  file. `list_filter()` keeps the answer as the entry's kind: `KIND_BOX`
+  or `KIND_ELF`.
+- **The list** puts `box` or `trusted` before an .elf's size. **Run?**
+  adds a line: `In a box, kept from the rest.` (green) or `Trusted: the
+  whole board.` (amber).
+- **Run** still decides from the loaded image. If that differs from the
+  list (the file replaced since), it runs as loaded and logs
+  `<name>: listed as boxed, loaded as trusted; running it as loaded`.
+
+The tag costs the name some room: "trusted " is eight characters at 21 px,
+so a long name is cut sooner on the list.
+
+*Checked:* `make -C m5tab5/test/elfsym` under ASan and UBSan, every case
+asked of memory and of a file through `elfsym_imports_from()`, agreeing;
+a 70-symbol .dynsym with the mark at 33 (past the first batch) and at 69
+(the last); a name over 64 characters refused. A deliberate break (the
+last partial batch skipped) fails it. Real linker output: i386 ELF32
+shared objects from `gcc -m32 -shared -nostdlib`, one importing the mark,
+read by `elfrun_probe()` (compiled on the host against stand-in headers,
+`-Wall -Wextra -Werror -O2`) after their machine field was set to RISC-V:
+`boxed` and `trusted`; as built, `built for machine 3, not RISC-V`.
+*Not checked:* an ESP-IDF build (main.c's part is compiled by nothing
+here); a board. What to look for: Defeatist's `.app.elf` listed `box`,
+an older trusted build `trusted`, and no `listed as ... loaded as` line.

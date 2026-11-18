@@ -11,6 +11,7 @@
 
 #include "esp_heap_caps.h"
 
+#include "elfsym.h"
 #include "vol.h"
 
 #define EI_NIDENT   16
@@ -39,13 +40,25 @@ static bool check(FILE *f, size_t size, char *why, size_t why_len)
 #undef NO
 }
 
-bool elfrun_probe(const char *path, char *why, size_t why_len)
+/* elfsym's reader, on an open file. ELFRUN_MAX keeps every offset inside
+ * a long. */
+static bool file_read(void *ctx, size_t off, void *dst, size_t n)
+{
+    FILE *f = ctx;
+    return fseek(f, (long)off, SEEK_SET) == 0 && fread(dst, 1, n, f) == n;
+}
+
+bool elfrun_probe(const char *path, char *why, size_t why_len, bool *boxed)
 {
     struct stat st;
+    if (boxed) *boxed = false;
     if (stat(path, &st) != 0) { snprintf(why, why_len, "cannot read it"); return false; }
     FILE *f = fopen(path, "rb");
     if (!f) { snprintf(why, why_len, "cannot open it"); return false; }
     bool ok = check(f, (size_t)st.st_size, why, why_len);
+    if (ok && boxed) {
+        *boxed = elfsym_imports_from(file_read, f, (size_t)st.st_size, ELFSYM_BOX_MARK);
+    }
     fclose(f);
     return ok;
 }

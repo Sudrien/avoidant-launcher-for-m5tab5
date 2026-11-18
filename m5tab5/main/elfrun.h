@@ -15,9 +15,14 @@
 
 /* Whether path is an ELF elfrun_load() would take: 32-bit RISC-V, a
  * shared object (what feckless_abi_elf() makes), not larger than
- * ELFRUN_MAX. Reads the header alone. False with a reason otherwise. The
- * caller holds the volume. */
-bool elfrun_probe(const char *path, char *why, size_t why_len);
+ * ELFRUN_MAX. False with a reason otherwise. The caller holds the volume.
+ *
+ * u-avoidant-0008: and, if boxed is not NULL, whether it is built for a box
+ * (it imports ELFSYM_BOX_MARK, as feckless_abi_box_elf() makes it) or for
+ * the trusted path -- read from its section headers and .dynsym, a few KB,
+ * not the whole file. run_elf() asks again of the loaded image, and that
+ * answer is the one that decides how it runs. */
+bool elfrun_probe(const char *path, char *why, size_t why_len, bool *boxed);
 
 #define ELFRUN_MAX  (4 * 1024 * 1024)
 
